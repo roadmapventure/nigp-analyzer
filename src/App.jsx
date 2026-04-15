@@ -194,7 +194,9 @@ export default function NIGPAnalyzer() {
     const systemPrompt = `You are a senior government procurement analyst writing an executive briefing for a Chief Procurement Officer (CPO). Write in a direct, authoritative tone. Use precise numbers from the data. Structure your response in clean HTML using only: <h2>, <h3>, <p>, <strong>, <span style="...">, <div style="...">. Use colors: accent #00C49F, risk #EF5350, warning #FFA726, text #c8dcea. Do not use bullet points. Write in flowing paragraphs like a McKinsey memo.`;
     const userPrompt = `Write a CPO Executive Briefing for this procurement data.\n\nFile: ${fileName}\nTotal Spend: ${fmtFull(data.totalSpend)}\nTransactions: ${data.txCount.toLocaleString()}\nNIGP Categories: ${data.classArr.length}\nUnique Vendors: ${data.vendorArr.length}\nVendor HHI: ${hhi} (>2500=highly concentrated)\n\nTOP 5 CATEGORIES:\n${top5cats.join("\n")}\n\nTOP 5 VENDORS:\n${top5vend.join("\n")}\n\nPROCUREMENT FLAGS:\n${flagSummary.join("\n")}\n\nWrite exactly four sections:\n1. PORTFOLIO OVERVIEW — 2-3 sentences on spend scale and category mix\n2. RISK ASSESSMENT — narrative analysis of top flags with dollar exposure\n3. STRATEGIC OPPORTUNITIES — 3 concrete 90-day actions with estimated value\n4. BOTTOM LINE — one paragraph the CPO can read aloud to city council in 30 seconds\n\nFormat as clean HTML. Make it feel like a premium consulting deliverable.`;
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      const endpoint = isLocalhost ? "https://api.anthropic.com/v1/messages" : "/api/brief";
+      const response = await fetch(endpoint, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ model:"claude-haiku-4-5-20251001", max_tokens:1200, system:systemPrompt, messages:[{role:"user",content:userPrompt}] }),
