@@ -16,10 +16,7 @@ function resolveNIGP(rawCode) {
   return { classCode, label };
 }
 
-<<<<<<< HEAD
-=======
 // ── FIELD_DEFS: department synonyms restricted to actual department/agency/division names only (#4)
->>>>>>> c66a840 (v2 testing)
 const FIELD_DEFS = {
   amount:      { label:"💰 Spend Amount",      required:true,  color:"#00C49F", hint:"Dollar value per transaction",         synonyms:["itm_tot_am","amount","total","spend","cost","price","value","sum","extended","amt","dollar","extended_amount","total_amount","line_total","po_amount"] },
   nigp:        { label:"🏷 NIGP Code",          required:true,  color:"#0088FE", hint:"Commodity / class code",              synonyms:["commodity","nigp","class","code","item_class","commodity_code","nigp_code","item_no","class_code","nigp_class","nigp_commodity"] },
@@ -51,15 +48,10 @@ function autoDetect(columns) {
 }
 
 const PALETTE = ["#00C49F","#FFBB28","#FF8042","#0088FE","#A45CFF","#FF6B9D","#29B6F6","#FFA726","#66BB6A","#EF5350","#AB47BC","#26C6DA","#D4E157","#FF7043","#42A5F5","#EC407A","#7E57C2","#26A69A","#FFA000","#78909C","#4DD0E1","#AED581","#FFD54F","#F48FB1","#CE93D8"];
-<<<<<<< HEAD
-const fmt = n => n>=1e9?`$${(n/1e9).toFixed(2)}B`:n>=1e6?`$${(n/1e6).toFixed(1)}M`:n>=1e3?`$${(n/1e3).toFixed(0)}K`:`$${n.toFixed(0)}`;
-const fmtFull = n => "$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-=======
 
 // #5 — fmtFull rounds to nearest dollar (no decimals)
 const fmt = n => n>=1e9?`$${(n/1e9).toFixed(1)}B`:n>=1e6?`$${(n/1e6).toFixed(1)}M`:n>=1e3?`$${(n/1e3).toFixed(0)}K`:`$${Math.round(n).toLocaleString()}`;
 const fmtFull = n => "$"+Math.round(Number(n)).toLocaleString("en-US");
->>>>>>> c66a840 (v2 testing)
 const parseAmt = raw => { if(!raw) return NaN; return parseFloat(String(raw).replace(/[$,\s]/g,"")); };
 const toTC = str => str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());
 const shortLabel = (s,n=38) => { const tc=toTC(s); return tc.length>n?tc.slice(0,n-1)+"…":tc; };
@@ -177,8 +169,6 @@ function computeVendorConc(rows, mapping, totalSpend) {
 
 const fileStore={current:null};
 
-<<<<<<< HEAD
-=======
 // ── SIDEBAR NAV CONFIG (#7) ──────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
@@ -220,7 +210,6 @@ const NAV_GROUPS = [
   },
 ];
 
->>>>>>> c66a840 (v2 testing)
 export default function NIGPAnalyzer() {
   const [stage,setStage]=useState("upload");
   const [columns,setColumns]=useState([]);
@@ -236,25 +225,15 @@ export default function NIGPAnalyzer() {
 
   const [localViewBy,setLocalViewBy]=useState("city");
   const [localSelected,setLocalSelected]=useState("");
-<<<<<<< HEAD
-  const [localThreshold,setLocalThreshold]=useState("");
   const [localApplied,setLocalApplied]=useState(null);
 
-  // ── AI Briefing state ──────────────────────────────────────────────────────
-=======
-  const [localApplied,setLocalApplied]=useState(null);
-
->>>>>>> c66a840 (v2 testing)
   const [aiLoading,setAiLoading]=useState(false);
   const [aiResult,setAiResult]=useState(null);
   const [aiError,setAiError]=useState("");
 
-<<<<<<< HEAD
-=======
   // #9 — HHI tooltip state
   const [hhiTooltipVisible,setHhiTooltipVisible]=useState(false);
 
->>>>>>> c66a840 (v2 testing)
   const generateBriefing = async () => {
     if (!data) return;
     setAiLoading(true); setAiResult(null); setAiError("");
@@ -263,20 +242,10 @@ export default function NIGPAnalyzer() {
     const flagSummary = data.flags.map(f=>`[${f.severity.toUpperCase()}] ${f.title}: ${f.summary}`);
     const hhi = data.vendorConc ? data.vendorConc.hhi.toFixed(0) : "N/A";
     const systemPrompt = `You are a senior government procurement analyst writing an executive briefing for a Chief Procurement Officer (CPO). Write in a direct, authoritative tone. Use precise numbers from the data. Structure your response in clean HTML using only: <h2>, <h3>, <p>, <strong>, <span style="...">, <div style="...">. Use colors: accent #00C49F, risk #EF5350, warning #FFA726, text #c8dcea. Do not use bullet points. Write in flowing paragraphs like a McKinsey memo.`;
-<<<<<<< HEAD
-    const userPrompt = `Write a CPO Executive Briefing for this procurement data.\n\nFile: ${fileName}\nTotal Spend: ${fmtFull(data.totalSpend)}\nTransactions: ${data.txCount.toLocaleString()}\nNIGP Categories: ${data.classArr.length}\nUnique Vendors: ${data.vendorArr.length}\nVendor HHI: ${hhi} (>2500=highly concentrated)\n\nTOP 5 CATEGORIES:\n${top5cats.join("\n")}\n\nTOP 5 VENDORS:\n${top5vend.join("\n")}\n\nPROCUREMENT FLAGS:\n${flagSummary.join("\n")}\n\nWrite exactly four sections:\n1. PORTFOLIO OVERVIEW — 2-3 sentences on spend scale and category mix\n2. RISK ASSESSMENT — narrative analysis of top flags with dollar exposure\n3. STRATEGIC OPPORTUNITIES — 3 concrete 90-day actions with estimated value\n4. BOTTOM LINE — one paragraph the CPO can read aloud to city council in 30 seconds\n\nFormat as clean HTML. Make it feel like a premium consulting deliverable.`;
-    try {
-      const isLocalhost = window.location.hostname === "localhost" ||
-                          window.location.hostname === "127.0.0.1";
-      const endpoint = isLocalhost
-        ? "https://api.anthropic.com/v1/messages"
-        : "/api/brief";
-=======
     const userPrompt = `Write a CPO Executive Briefing for this procurement data.\n\nFile: ${fileName}\nTotal Spend: ${fmtFull(data.totalSpend)}\nTransactions: ${data.txCount.toLocaleString()}\nCategories: ${data.classArr.length}\nUnique Vendors: ${data.vendorArr.length}\nVendor HHI: ${hhi} (>2500=highly concentrated)\n\nTOP 5 CATEGORIES:\n${top5cats.join("\n")}\n\nTOP 5 VENDORS:\n${top5vend.join("\n")}\n\nPROCUREMENT FLAGS:\n${flagSummary.join("\n")}\n\nWrite exactly four sections:\n1. PORTFOLIO OVERVIEW — 2-3 sentences on spend scale and category mix\n2. RISK ASSESSMENT — narrative analysis of top flags with dollar exposure\n3. STRATEGIC OPPORTUNITIES — 3 concrete 90-day actions with estimated value\n4. BOTTOM LINE — one paragraph the CPO can read aloud to city council in 30 seconds\n\nFormat as clean HTML. Make it feel like a premium consulting deliverable.`;
     try {
       const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       const endpoint = isLocalhost ? "https://api.anthropic.com/v1/messages" : "/api/brief";
->>>>>>> c66a840 (v2 testing)
       const response = await fetch(endpoint, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -343,23 +312,6 @@ export default function NIGPAnalyzer() {
 
   const highFlags=(data?.flags||[]).filter(f=>f.severity==="high").length;
   const dirtyCount=data?.dirtyRows?.length||0;
-<<<<<<< HEAD
-  const tabs=!data?[]:[
-    {id:"overview",label:"Overview"},
-    {id:"flags",label:`⚠ Concerns${highFlags>0?` (${highFlags})`:""}`,alert:highFlags>0},
-    {id:"concentration",label:"Vendor Risk"},
-    {id:"categories",label:"Categories"},
-    {id:"treemap",label:"Treemap"},
-    ...(data.hasVendor?[{id:"vendors",label:"Vendors"}]:[]),
-    ...(data.hasDept?[{id:"departments",label:"Departments"}]:[]),
-    ...(data.hasDate?[{id:"timeline",label:"Timeline"}]:[]),
-    {id:"table",label:"Full Table"},
-    ...(dirtyCount>0?[{id:"cleanup",label:`🧹 Cleanup (${dirtyCount})`,alert:true,alertColor:"#FFA726"}]:[]),
-    {id:"localspend",label:"📍 Local Spend"},
-    {id:"aibriefing",label:"✨ AI Briefing",ai:true},
-  ];
-=======
->>>>>>> c66a840 (v2 testing)
 
   // Build tab availability
   const availableTabs = useMemo(()=>{
@@ -390,24 +342,6 @@ export default function NIGPAnalyzer() {
     </div>
   );
 
-<<<<<<< HEAD
-  if(loading) return <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}><Header/><div style={{textAlign:"center",padding:"120px 0",color:"#5a8aaa"}}><div style={{fontSize:40,marginBottom:16}}>⚙️</div><div style={{fontSize:18,fontWeight:600}}>Analyzing spend data…</div></div></div>;
-
-  if(stage==="upload") return (
-    <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}>
-      <Header/>
-      <div style={{maxWidth:680,margin:"60px auto 0",padding:"0 24px"}}>
-        <div onClick={()=>inputRef.current.click()} onDrop={e=>{e.preventDefault();setDragOver(false);processFile(e.dataTransfer.files[0]);}} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}
-          style={{border:`2px dashed ${dragOver?"#00C49F":"#1e3a4a"}`,borderRadius:16,padding:"60px 40px",textAlign:"center",cursor:"pointer",background:dragOver?"rgba(0,196,159,0.04)":"#0a1729",transition:"all 0.2s"}}>
-          <div style={{fontSize:48,marginBottom:16}}>📊</div>
-          <div style={{fontSize:20,fontWeight:700,color:"#d0e8f5",marginBottom:8}}>Drop your government spend CSV</div>
-          <div style={{fontSize:14,color:"#4a7a96",marginBottom:24}}>NIGP 18th Edition lookup · Procurement health analysis · AI Executive Briefing</div>
-          <div style={{display:"inline-block",background:"linear-gradient(135deg,#00C49F,#0088FE)",color:"#fff",borderRadius:10,padding:"12px 28px",fontWeight:700,fontSize:15}}>Choose CSV File</div>
-          <input ref={inputRef} type="file" accept=".csv" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
-        </div>
-        <div style={{marginTop:20,background:"rgba(164,92,255,0.07)",border:"1px solid #A45CFF33",borderRadius:12,padding:"14px 18px",fontSize:13,color:"#8a6aaa",lineHeight:1.6}}>
-          ✨ <strong style={{color:"#C47CFF"}}>New: AI CPO Briefing</strong> — After uploading, click the AI Briefing tab to generate a board-ready executive summary powered by Claude AI.
-=======
   // ── LOADING ──────────────────────────────────────────────────────────────────
   if(loading) return (
     <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}>
@@ -459,17 +393,13 @@ export default function NIGPAnalyzer() {
         </div>
         <div style={{marginTop:20,background:"rgba(164,92,255,0.07)",border:"1px solid #A45CFF33",borderRadius:12,padding:"14px 18px",fontSize:13,color:"#8a6aaa",lineHeight:1.6}}>
           ✨ <strong style={{color:"#C47CFF"}}>AI CPO Briefing</strong> — After uploading, navigate to AI Briefing under Strategy to generate a board-ready executive summary powered by Claude AI.
->>>>>>> c66a840 (v2 testing)
         </div>
         {error&&<div style={{marginTop:16,background:"rgba(239,83,80,0.1)",border:"1px solid #ef535044",borderRadius:10,padding:"12px 16px",color:"#ff8a80",fontSize:14}}>⚠ {error}</div>}
       </div>
     </div>
   );
 
-<<<<<<< HEAD
-=======
   // ── MAPPING STAGE ────────────────────────────────────────────────────────────
->>>>>>> c66a840 (v2 testing)
   if(stage==="map") return (
     <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}>
       <Header/>
@@ -507,10 +437,7 @@ export default function NIGPAnalyzer() {
     </div>
   );
 
-<<<<<<< HEAD
-=======
   // ── ANALYZE STAGE ────────────────────────────────────────────────────────────
->>>>>>> c66a840 (v2 testing)
   const vc=data.vendorConc;
 
   // Derive local spend label from data (#13)
@@ -522,38 +449,6 @@ export default function NIGPAnalyzer() {
     <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea",display:"flex",flexDirection:"column"}}>
       <Header/>
 
-<<<<<<< HEAD
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:12,marginBottom:22}}>
-          {[
-            {label:"Total Spend",value:fmtFull(data.totalSpend),accent:"#00C49F"},
-            {label:"Transactions",value:data.txCount.toLocaleString(),accent:"#0088FE"},
-            {label:"NIGP Classes",value:data.classArr.length,accent:"#FFBB28"},
-            ...(data.hasVendor?[{label:"Unique Vendors",value:data.vendorArr.length.toLocaleString(),accent:"#FF8042"}]:[]),
-            {label:"Health Flags",value:data.flags.length,accent:data.flags.filter(f=>f.severity==="high").length>0?"#EF5350":"#FFA726"},
-            ...(vc?[{label:"Vendor HHI",value:vc.hhi.toFixed(0),accent:vc.hhi>2500?"#EF5350":vc.hhi>1500?"#FFA726":"#00C49F"}]:[]),
-            ...(data.classArr.length>0?[{label:"Top Category %",value:fmtPct(data.classArr[0].total/data.totalSpend*100),sub:data.classArr[0].displayLabel,accent:"#A45CFF"}]:[]),
-            ...(data.hasVendor&&data.vendorArr.length>0?[{label:"Top Vendor %",value:fmtPct(data.vendorArr[0].total/data.totalSpend*100),sub:data.vendorArr[0].name.length>22?data.vendorArr[0].name.slice(0,21)+"…":data.vendorArr[0].name,accent:"#29B6F6"}]:[]),
-          ].map(s=>(
-            <div key={s.label} style={{background:"#0a1729",borderRadius:12,padding:"13px 16px",border:"1px solid #1a3040"}}>
-              <div style={{fontSize:11,color:"#4a7a96",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:5}}>{s.label}</div>
-              <div style={{fontSize:20,fontWeight:800,color:s.accent}}>{s.value}</div>
-              {s.sub&&<div style={{fontSize:10,color:"#3a6a86",marginTop:3,lineHeight:1.3}}>{s.sub}</div>}
-            </div>
-          ))}
-        </div>
-
-        <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap"}}>
-          {tabs.map(t=>{
-            const ac=t.alertColor||"#EF5350";
-            return(
-            <button key={t.id} onClick={()=>setActiveTab(t.id)}
-              style={{padding:"7px 16px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",border:"1px solid",transition:"all 0.15s",
-                background:activeTab===t.id?(t.ai?"rgba(164,92,255,0.15)":t.alert?`${ac}22`:"linear-gradient(135deg,#00C49F22,#0088FE22)"):"transparent",
-                borderColor:activeTab===t.id?(t.ai?"#A45CFF":t.alert?ac:"#00C49F"):(t.ai?"#A45CFF44":"#1e3a4a"),
-                color:activeTab===t.id?(t.ai?"#C47CFF":t.alert?ac:"#00C49F"):(t.ai?"#8a5aaa":"#5a8aaa")}}>
-              {t.label}
-            </button>
-=======
       {/* ── MAIN LAYOUT: sidebar + content ── */}
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
 
@@ -602,7 +497,6 @@ export default function NIGPAnalyzer() {
                   );
                 })}
               </div>
->>>>>>> c66a840 (v2 testing)
             );
           })}
 
@@ -612,18 +506,6 @@ export default function NIGPAnalyzer() {
           </div>
         </div>
 
-<<<<<<< HEAD
-        {activeTab==="overview"&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-            {data.flags.length>0&&(
-              <div style={{gridColumn:"1/-1",background:"rgba(239,83,80,0.06)",border:"1px solid #EF535033",borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14}}>
-                <div style={{fontSize:28}}>⚠️</div>
-                <div>
-                  <div style={{fontSize:14,fontWeight:700,color:"#e8f4ff",marginBottom:3}}>{data.flags.filter(f=>f.severity==="high").length} high-priority procurement concerns detected</div>
-                  <div style={{fontSize:13,color:"#8ab4cc"}}>
-                    {data.flags.map(f=>`${FLAG_ICONS[f.severity]} ${f.title.split("—")[0].trim()}`).join(" · ")}
-                    {" "}<button onClick={()=>setActiveTab("flags")} style={{background:"none",border:"none",color:"#EF5350",cursor:"pointer",fontSize:13,fontWeight:700,padding:0}}>View all →</button>
-=======
         {/* ── CONTENT AREA ── */}
         <div style={{flex:1,overflowY:"auto",padding:"24px 28px"}}>
 
@@ -662,7 +544,6 @@ export default function NIGPAnalyzer() {
                       {data.flags.map(f=>`${FLAG_ICONS[f.severity]} ${f.title.split("—")[0].trim()}`).join(" · ")}
                       {" "}<button onClick={()=>setActiveTab("flags")} style={{background:"none",border:"none",color:"#EF5350",cursor:"pointer",fontSize:13,fontWeight:700,padding:0}}>View all →</button>
                     </div>
->>>>>>> c66a840 (v2 testing)
                   </div>
                 </div>
               )}
@@ -792,13 +673,8 @@ export default function NIGPAnalyzer() {
                   <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false} xAxisId="top" orientation="top"/>
                   <YAxis type="category" dataKey="label" width={160} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
                   <Tooltip content={<Tip total={data.totalSpend}/>}/>
-<<<<<<< HEAD
-                  <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>}>
-                    {top15C.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.9}/>)}
-=======
                   <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>} xAxisId="bottom">
                     {data.classArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
->>>>>>> c66a840 (v2 testing)
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -816,36 +692,6 @@ export default function NIGPAnalyzer() {
             </Card>
           )}
 
-<<<<<<< HEAD
-        {activeTab==="flags"&&(
-          <div>
-            <div style={{marginBottom:20}}>
-              <div style={{fontSize:18,fontWeight:800,color:"#e8f4ff",marginBottom:6}}>Procurement Health Review</div>
-              <div style={{fontSize:13,color:"#5a8aaa"}}>{data.flags.length} concern{data.flags.length!==1?"s":""} detected · {data.flags.filter(f=>f.severity==="high").length} high · {data.flags.filter(f=>f.severity==="medium").length} medium · {data.flags.filter(f=>f.severity==="low").length} low · {data.flags.filter(f=>f.severity==="info").length} informational.</div>
-            </div>
-            {data.flags.length===0&&(<div style={{background:"rgba(0,196,159,0.07)",border:"1px solid #00C49F33",borderRadius:12,padding:"40px",textAlign:"center"}}><div style={{fontSize:36,marginBottom:12}}>✅</div><div style={{fontSize:16,fontWeight:700,color:"#00C49F"}}>No significant procurement concerns detected</div></div>)}
-            {["high","medium","low","info"].map(sev=>{ const grp=data.flags.filter(f=>f.severity===sev); if(!grp.length) return null; const labels={high:"🔴 High Priority",medium:"🟠 Medium Priority",low:"🟡 Low Priority",info:"🔵 Informational"}; return(<div key={sev} style={{marginBottom:24}}><div style={{fontSize:13,fontWeight:700,color:FLAG_COLORS[sev],marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>{labels[sev]}</div>{grp.map((f,i)=><FlagCard key={i} {...f} totalSpend={data.totalSpend}/>)}</div>); })}
-          </div>
-        )}
-
-        {activeTab==="concentration"&&vc&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-            <div style={{gridColumn:"1/-1",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-              {[
-                {label:"HHI Score",value:vc.hhi.toFixed(0),sub:vc.hhi>2500?"Highly Concentrated":vc.hhi>1500?"Moderately Concentrated":"Competitive",accent:vc.hhi>2500?"#EF5350":vc.hhi>1500?"#FFA726":"#00C49F"},
-                {label:"Vendors for 50% of Spend",value:vc.v50,sub:"higher = more diverse",accent:"#0088FE"},
-                {label:"Vendors for 75% of Spend",value:vc.v75,sub:"higher = more diverse",accent:"#FFBB28"},
-                {label:"Vendors for 90% of Spend",value:vc.v90,sub:`of ${data.vendorArr.length} total`,accent:"#FF8042"},
-              ].map(s=>(<div key={s.label} style={{background:"#0a1729",borderRadius:12,padding:"14px 16px",border:"1px solid #1a3040"}}><div style={{fontSize:11,color:"#4a7a96",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>{s.label}</div><div style={{fontSize:24,fontWeight:800,color:s.accent,marginBottom:2}}>{s.value}</div><div style={{fontSize:11,color:"#3a6a86"}}>{s.sub}</div></div>))}
-            </div>
-            <Card title="Top 15 Vendors by Spend">
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={top15V.map(v=>({...v,_pct:v.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:70,top:5,bottom:5}}>
-                  <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false}/>
-                  <YAxis type="category" dataKey="name" width={185} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                  <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>}>
-=======
           {activeTab==="vendors"&&data.hasVendor&&(
             // #11 — dual X-axis
             <Card title="Top 15 Vendors by Spend" span2>
@@ -856,141 +702,11 @@ export default function NIGPAnalyzer() {
                   <YAxis type="category" dataKey="name" width={200} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
                   <Tooltip content={<Tip total={data.totalSpend}/>}/>
                   <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>} xAxisId="bottom">
->>>>>>> c66a840 (v2 testing)
                     {top15V.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </Card>
-<<<<<<< HEAD
-            <Card title="Spend Concentration Curve">
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={vc.cumulativeCurve.slice(0,Math.min(50,vc.cumulativeCurve.length))} margin={{left:10,right:20,top:10,bottom:20}}>
-                  <XAxis dataKey="rank" label={{value:"Vendor Rank",position:"insideBottom",fill:"#4a7a96",fontSize:11,offset:-5}} tick={{fill:"#4a7a96",fontSize:10}}/>
-                  <YAxis domain={[0,100]} tickFormatter={v=>`${v}%`} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false}/>
-                  <Tooltip formatter={(v)=>[`${v.toFixed(1)}%`,"Cumulative Spend"]} labelFormatter={l=>`Vendor #${l}`}/>
-                  <ReferenceLine y={50} stroke="#00C49F44" strokeDasharray="4 4" label={{value:"50%",fill:"#00C49F",fontSize:11}}/>
-                  <ReferenceLine y={80} stroke="#FFA72644" strokeDasharray="4 4" label={{value:"80%",fill:"#FFA726",fontSize:11}}/>
-                  <Line type="monotone" dataKey="cumPct" stroke="#0088FE" strokeWidth={2} dot={false}/>
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
-        )}
-
-        {activeTab==="categories"&&(
-          <Card title="All NIGP Classes — Full Spend Breakdown" subtitle={`${data.classArr.length} classes matched`} span2>
-            <ResponsiveContainer width="100%" height={Math.max(500,data.classArr.length*26)}>
-              <BarChart data={data.classArr.map(x=>({...x,label:x.displayLabel,_pct:x.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:5,bottom:5}}>
-                <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="label" width={160} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>}>
-                  {data.classArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        )}
-
-        {activeTab==="treemap"&&(
-          <Card title="Spend Treemap" subtitle="Area proportional to dollar volume · top 30 NIGP classes" span2>
-            {(()=>{ _treemapTotal = data.totalSpend; return null; })()}
-            <ResponsiveContainer width="100%" height={540}>
-              <Treemap data={treemapData} dataKey="size" aspectRatio={16/9} content={<TreeCell/>}>
-                <Tooltip formatter={(v,n,p)=>[`${fmtFull(v)} · ${(v/data.totalSpend*100).toFixed(1)}%`,p.payload?.name||n]}/>
-              </Treemap>
-            </ResponsiveContainer>
-          </Card>
-        )}
-
-        {activeTab==="vendors"&&data.hasVendor&&(
-          <Card title="Top 15 Vendors by Spend" span2>
-            <ResponsiveContainer width="100%" height={440}>
-              <BarChart data={top15V.map(v=>({...v,_pct:v.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:5,bottom:5}}>
-                <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" width={200} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>}>
-                  {top15V.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        )}
-
-        {activeTab==="departments"&&data.hasDept&&(
-          <Card title="Spend by Department" span2>
-            <ResponsiveContainer width="100%" height={Math.max(430,data.deptArr.length*28)}>
-              <BarChart data={data.deptArr.map(d=>({...d,_pct:d.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:5,bottom:5}}>
-                <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" width={180} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>}>
-                  {data.deptArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        )}
-
-        {activeTab==="timeline"&&data.hasDate&&(
-          <Card title="Monthly Spend" subtitle="Total procurement spend by month" span2>
-            <ResponsiveContainer width="100%" height={360}>
-              <BarChart data={data.monthArr} margin={{left:10,right:20,top:5,bottom:20}}>
-                <XAxis dataKey="month" tick={{fill:"#8ab4cc",fontSize:11}} axisLine={false} tickLine={false}/>
-                <YAxis tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false}/>
-                <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                <ReferenceLine y={data.totalSpend/data.monthArr.length} stroke="#00C49F55" strokeDasharray="4 4" label={{value:`Avg ${fmt(data.totalSpend/data.monthArr.length)}`,position:"insideTopRight",fill:"#00C49F",fontSize:10}}/>
-                <Bar dataKey="total" radius={[5,5,0,0]}>{data.monthArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}</Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        )}
-
-        {activeTab==="table"&&(
-          <Card title="Full NIGP Class Table" subtitle="All classes · NIGP 18th Edition descriptions" span2>
-            <input placeholder="Search class name or code…" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{width:"100%",boxSizing:"border-box",marginBottom:14,background:"#0d1e2e",border:"1px solid #1e3a4a",borderRadius:8,padding:"9px 14px",color:"#c8dcea",fontSize:13,outline:"none"}}/>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead><tr>{["#","Class","NIGP Description","Total Spend","% Spend","Txns","Avg/Txn"].map(h=><th key={h} style={{textAlign:"left",padding:"10px 12px",color:"#4a7a96",fontWeight:600,fontSize:11,textTransform:"uppercase",letterSpacing:"0.06em",borderBottom:"1px solid #1a3040",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {filtered.map(row=>{ const rank=data.classArr.indexOf(row)+1; const spendPct=row.total/data.totalSpend*100; return(
-                    <tr key={row.classCode+row.label} style={{borderBottom:"1px solid #101e2e"}} onMouseOver={e=>e.currentTarget.style.background="#0d1e2e"} onMouseOut={e=>e.currentTarget.style.background="transparent"}>
-                      <td style={{textAlign:"center",padding:"9px 12px",color:"#3a6a86"}}>{rank}</td>
-                      <td style={{textAlign:"center",padding:"9px 12px"}}><span style={{background:"#0d1e2e",borderRadius:5,padding:"2px 8px",fontSize:12,color:"#5a9aaa",border:"1px solid #1e3a4a",fontWeight:700}}>{row.classCode}</span></td>
-                      <td style={{padding:"9px 12px",color:"#c8dcea",fontWeight:500,maxWidth:300}}>{toTC(row.label)}</td>
-                      <td style={{padding:"9px 12px",color:"#00C49F",fontWeight:700,whiteSpace:"nowrap"}}>{fmtFull(row.total)}</td>
-                      <td style={{padding:"9px 12px",minWidth:130}}><PctBar pct={spendPct} color={PALETTE[rank%PALETTE.length]} width={70}/></td>
-                      <td style={{padding:"9px 12px",color:"#8ab4cc"}}>{row.count.toLocaleString()}</td>
-                      <td style={{padding:"9px 12px",color:"#8ab4cc",whiteSpace:"nowrap"}}>{fmtFull(row.total/row.count)}</td>
-                    </tr>
-                  ); })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        )}
-
-        {activeTab==="cleanup"&&(
-          <div>
-            <div style={{marginBottom:20}}>
-              <div style={{fontSize:18,fontWeight:800,color:"#e8f4ff",marginBottom:6}}>Data Quality — NIGP Code Cleanup</div>
-              <div style={{fontSize:13,color:"#5a8aaa"}}>{data.dirtyRows.length.toLocaleString()} transactions could not be fully classified due to missing, malformed, or unrecognized NIGP codes.</div>
-            </div>
-            <div style={{background:"#0a1729",borderRadius:14,padding:"20px 22px",border:"1px solid #1a3040"}}>
-              <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                  <thead><tr>{["Issue","Raw Code","Description","Vendor","Spend"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 12px",color:"#4a7a96",fontWeight:600,fontSize:11,textTransform:"uppercase",letterSpacing:"0.06em",borderBottom:"1px solid #1a3040"}}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {data.dirtyRows.slice(0,100).map((row,i)=>{ const ic={"Missing Code":"#EF5350","Code Too Short":"#FFA726","Unrecognized Class":"#FFBB28"}[row.issue]||"#8ab4cc"; return(
-                      <tr key={i} style={{borderBottom:"1px solid #101e2e"}} onMouseOver={e=>e.currentTarget.style.background="#0d1e2e"} onMouseOut={e=>e.currentTarget.style.background="transparent"}>
-                        <td style={{padding:"9px 12px"}}><span style={{background:`${ic}15`,borderRadius:5,padding:"2px 8px",fontSize:11,color:ic,border:`1px solid ${ic}44`}}>{row.issue}</span></td>
-                        <td style={{padding:"9px 12px"}}><span style={{background:"#0d1e2e",borderRadius:5,padding:"2px 7px",fontSize:11,color:"#FFBB28",border:"1px solid #FFBB2833",fontWeight:700}}>{row.rawCode}</span></td>
-                        <td style={{padding:"9px 12px",color:"#c8dcea",maxWidth:220,fontSize:12}}>{String(row.description||"—").slice(0,55)}</td>
-                        <td style={{padding:"9px 12px",color:"#8ab4cc",maxWidth:160,fontSize:12}}>{String(row.vendor||"—").slice(0,35)}</td>
-                        <td style={{padding:"9px 12px",color:"#00C49F",fontWeight:700,whiteSpace:"nowrap"}}>{fmtFull(row.amount)}</td>
-=======
           )}
 
           {activeTab==="departments"&&data.hasDept&&(
@@ -1042,14 +758,10 @@ export default function NIGPAnalyzer() {
                         <td style={{padding:"9px 12px",minWidth:130}}><PctBar pct={spendPct} color={PALETTE[rank%PALETTE.length]} width={70}/></td>
                         <td style={{padding:"9px 12px",color:"#8ab4cc"}}>{row.count.toLocaleString()}</td>
                         <td style={{padding:"9px 12px",color:"#8ab4cc",whiteSpace:"nowrap"}}>{fmtFull(row.total/row.count)}</td>
->>>>>>> c66a840 (v2 testing)
                       </tr>
                     ); })}
                   </tbody>
                 </table>
-<<<<<<< HEAD
-                {data.dirtyRows.length>100&&<div style={{textAlign:"center",padding:"14px",fontSize:12,color:"#3a6a86"}}>Showing first 100 of {data.dirtyRows.length.toLocaleString()} rows</div>}
-=======
               </div>
             </Card>
           )}
@@ -1078,56 +790,10 @@ export default function NIGPAnalyzer() {
                   </table>
                   {data.dirtyRows.length>100&&<div style={{textAlign:"center",padding:"14px",fontSize:12,color:"#3a6a86"}}>Showing first 100 of {data.dirtyRows.length.toLocaleString()} rows</div>}
                 </div>
->>>>>>> c66a840 (v2 testing)
               </div>
             </div>
           )}
 
-<<<<<<< HEAD
-        {activeTab==="localspend"&&(()=>{
-          const cityC=mapping.vendor_city; const stateC=mapping.vendor_state;
-          const hasCity=!!cityC&&data.cityValues.length>0; const hasState=!!stateC&&data.stateValues.length>0;
-          const dropdownOptions=localViewBy==="city"?data.cityValues:data.stateValues;
-          const ls=localApplied?(()=>{
-            const {viewBy,value}=localApplied; const fieldCol=viewBy==="city"?cityC:stateC; if(!fieldCol) return null;
-            const localRows=[],nonLocalRows=[];
-            for(const r of data.rows){ const v=String(r[fieldCol]||"").trim(); const match=viewBy==="state"?v.toUpperCase()===value.toUpperCase():v.toLowerCase()===value.toLowerCase(); if(match) localRows.push(r); else nonLocalRows.push(r); }
-            const localTotal=localRows.reduce((s,r)=>s+r._amt,0); const localPct=data.totalSpend>0?localTotal/data.totalSpend*100:0;
-            const localVendors=new Set(localRows.map(r=>mapping.vendor?String(r[mapping.vendor]||"").trim():"").filter(Boolean));
-            return {localTotal,nonLocalTotal:data.totalSpend-localTotal,localPct,nonLocalPct:100-localPct,localVendors:localVendors.size,localTxns:localRows.length,nonLocalTxns:nonLocalRows.length,value};
-          })():null;
-          return(
-            <div>
-              <div style={{background:"#0a1729",border:"1px solid #1a3040",borderRadius:14,padding:"20px 24px",marginBottom:20}}>
-                <div style={{fontSize:15,fontWeight:700,color:"#d0e8f5",marginBottom:12}}>Local Spend Analysis</div>
-                <div style={{display:"flex",gap:16,flexWrap:"wrap",alignItems:"flex-end"}}>
-                  <div style={{display:"flex",background:"#0d1e2e",borderRadius:9,border:"1px solid #1a3040",overflow:"hidden"}}>
-                    {[{val:"city",label:"🏙 City",avail:hasCity},{val:"state",label:"🗺 State",avail:hasState}].map(opt=>(
-                      <button key={opt.val} onClick={()=>{if(opt.avail){setLocalViewBy(opt.val);setLocalSelected("");}}} disabled={!opt.avail}
-                        style={{padding:"9px 22px",fontSize:13,fontWeight:700,cursor:opt.avail?"pointer":"not-allowed",border:"none",fontFamily:"inherit",opacity:opt.avail?1:0.35,background:localViewBy===opt.val&&opt.avail?"rgba(102,187,106,0.15)":"transparent",color:localViewBy===opt.val&&opt.avail?"#66BB6A":"#4a7a96"}}>{opt.label}</button>
-                    ))}
-                  </div>
-                  <select value={localSelected} onChange={e=>setLocalSelected(e.target.value)} disabled={dropdownOptions.length===0}
-                    style={{background:"#0d1e2e",border:"1px solid #2a4a5a",borderRadius:8,padding:"9px 14px",color:localSelected?"#d0e8f5":"#5a8aaa",fontSize:13,fontFamily:"inherit",cursor:"pointer",outline:"none",minWidth:200}}>
-                    <option value="">— Choose a {localViewBy==="city"?"city":"state"} —</option>
-                    {dropdownOptions.map(v=><option key={v} value={v}>{v}</option>)}
-                  </select>
-                  <button onClick={()=>{if(localSelected) setLocalApplied({viewBy:localViewBy,value:localSelected});}} disabled={!localSelected}
-                    style={{background:localSelected?"linear-gradient(135deg,#66BB6A,#29B6F6)":"#1a3040",border:"none",color:localSelected?"#fff":"#3a6a86",borderRadius:8,padding:"9px 22px",fontSize:13,fontWeight:700,cursor:localSelected?"pointer":"not-allowed",fontFamily:"inherit"}}>Apply →</button>
-                  {localApplied&&<button onClick={()=>{setLocalApplied(null);setLocalSelected("");}} style={{background:"transparent",border:"1px solid #1e3a4a",color:"#5a8aaa",borderRadius:8,padding:"9px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
-                </div>
-              </div>
-              {!localApplied&&<div style={{background:"rgba(102,187,106,0.05)",border:"1px solid #66BB6A22",borderRadius:14,padding:"60px 40px",textAlign:"center"}}><div style={{fontSize:40,marginBottom:14}}>📍</div><div style={{fontSize:17,fontWeight:700,color:"#d0e8f5",marginBottom:8}}>Select a local area to begin</div></div>}
-              {ls&&(
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
-                  {[{label:"Local Spend",val:fmtFull(ls.localTotal),pill:`${ls.localPct.toFixed(1)}%`,accent:"#66BB6A"},{label:"Non-Local Spend",val:fmtFull(ls.nonLocalTotal),pill:`${ls.nonLocalPct.toFixed(1)}%`,accent:"#EF5350"},{label:"Local Vendors",val:ls.localVendors,pill:`${ls.localTxns.toLocaleString()} txns`,accent:"#FFBB28"},{label:"Non-Local Txns",val:ls.nonLocalTxns.toLocaleString(),pill:`${ls.nonLocalPct.toFixed(1)}% of txns`,accent:"#FFA726"}].map(k=>(
-                    <div key={k.label} style={{background:"#0a1729",border:"1px solid #1a3040",borderRadius:14,padding:"18px 20px"}}>
-                      <div style={{fontSize:11,color:"#4a7a96",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8,fontWeight:600}}>{k.label}</div>
-                      <div style={{fontSize:22,fontWeight:800,color:k.accent,marginBottom:5}}>{k.val}</div>
-                      <div style={{fontSize:12,color:"#5a8aaa"}}>{k.pill}</div>
-                    </div>
-                  ))}
-=======
           {/* #13 — Local Spend with dynamic city/state labels */}
           {activeTab==="localspend"&&(()=>{
             const cityC=mapping.vendor_city; const stateC=mapping.vendor_state;
@@ -1266,99 +932,11 @@ export default function NIGPAnalyzer() {
                     {/* #14c — Board-ready PDF export */}
                     <span style={{background:"#0d1e2e",padding:"5px 12px",borderRadius:6,border:"1px solid #1a3040"}}>Board-ready PDF export</span>
                   </div>
->>>>>>> c66a840 (v2 testing)
                 </div>
               )}
             </div>
           )}
 
-<<<<<<< HEAD
-        {/* ── AI CPO BRIEFING ── */}
-        {activeTab==="aibriefing"&&(
-          <div>
-            <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
-              <div>
-                <div style={{fontSize:20,fontWeight:800,marginBottom:5}}>
-                  <span style={{background:"linear-gradient(135deg,#A45CFF,#FF6B9D)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>✨ AI CPO Executive Briefing</span>
-                </div>
-                <div style={{fontSize:13,color:"#5a8aaa",maxWidth:600,lineHeight:1.5}}>
-                  Powered by Claude AI · Analyzes your spend data, flags, and vendor concentration to produce a board-ready executive summary in seconds.
-                </div>
-              </div>
-              <button onClick={generateBriefing} disabled={aiLoading}
-                style={{background:aiLoading?"#1a2a3a":"linear-gradient(135deg,#A45CFF,#FF6B9D)",border:"none",color:"#fff",borderRadius:12,padding:"13px 28px",cursor:aiLoading?"not-allowed":"pointer",fontSize:15,fontWeight:700,boxShadow:aiLoading?"none":"0 4px 24px rgba(164,92,255,0.35)",transition:"all 0.2s",whiteSpace:"nowrap",flexShrink:0}}>
-                {aiLoading?"⏳ Generating…":"⚡ Generate Executive Briefing"}
-              </button>
-            </div>
-
-            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:22}}>
-              {[
-                {label:"Total Spend",val:fmtFull(data.totalSpend),color:"#00C49F"},
-                {label:"Transactions",val:data.txCount.toLocaleString(),color:"#0088FE"},
-                {label:"Health Flags",val:data.flags.length+" detected",color:data.flags.filter(f=>f.severity==="high").length>0?"#EF5350":"#FFA726"},
-                ...(data.vendorConc?[{label:"Vendor HHI",val:data.vendorConc.hhi.toFixed(0),color:data.vendorConc.hhi>2500?"#EF5350":data.vendorConc.hhi>1500?"#FFA726":"#00C49F"}]:[]),
-              ].map(p=>(
-                <div key={p.label} style={{background:`${p.color}12`,border:`1px solid ${p.color}33`,borderRadius:8,padding:"6px 14px",display:"flex",gap:8,alignItems:"center"}}>
-                  <span style={{fontSize:11,color:"#4a7a96",textTransform:"uppercase",letterSpacing:"0.07em"}}>{p.label}</span>
-                  <span style={{fontSize:13,fontWeight:800,color:p.color}}>{p.val}</span>
-                </div>
-              ))}
-            </div>
-
-            {aiError&&<div style={{background:"rgba(239,83,80,0.1)",border:"1px solid #EF535044",borderRadius:10,padding:"14px 18px",color:"#ff8a80",fontSize:14,marginBottom:20}}>⚠ {aiError}</div>}
-
-            {aiLoading&&(
-              <div style={{background:"#0a1729",border:"1px solid #A45CFF33",borderRadius:16,padding:"60px 40px",textAlign:"center"}}>
-                <div style={{fontSize:36,marginBottom:16}}>🤖</div>
-                <div style={{fontSize:16,fontWeight:700,color:"#C47CFF",marginBottom:8}}>Claude is analyzing your procurement data…</div>
-                <div style={{fontSize:13,color:"#5a8aaa"}}>Reading {data.txCount.toLocaleString()} transactions · {data.flags.length} health flags · {data.classArr.length} NIGP categories</div>
-              </div>
-            )}
-
-            {aiResult&&!aiLoading&&(
-              <div style={{background:"#0a1729",border:"1px solid #A45CFF44",borderRadius:16,padding:"32px 36px"}}>
-                <div style={{borderBottom:"1px solid #1a3040",paddingBottom:20,marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
-                  <div>
-                    <div style={{fontSize:11,color:"#A45CFF",fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:5}}>CONFIDENTIAL · EXECUTIVE BRIEFING</div>
-                    <div style={{fontSize:22,fontWeight:800,color:"#e8f4ff",marginBottom:4}}>Procurement Intelligence Report</div>
-                    <div style={{fontSize:13,color:"#5a8aaa"}}>{fileName} · Generated {new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})}</div>
-                  </div>
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>{ const blob=new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CPO Briefing</title><style>body{background:#080f18;font-family:'Segoe UI',sans-serif;color:#c8dcea;max-width:860px;margin:0 auto;padding:40px}h2{color:#A45CFF;font-size:13px;text-transform:uppercase;letter-spacing:.12em;border-bottom:1px solid #1a3040;padding-bottom:8px;margin-top:32px}h3{color:#e8f4ff}p{color:#8ab4cc;line-height:1.7}strong{color:#d0e8f5}</style></head><body><h1 style="color:#e8f4ff">Procurement Intelligence Report</h1><p style="color:#5a8aaa">${fileName} · ${new Date().toLocaleDateString()}</p>${aiResult}</body></html>`],{type:"text/html"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="cpo-briefing.html"; a.click(); }} style={{background:"#0d1e2e",border:"1px solid #1e3a4a",color:"#7aafc9",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600}}>⬇ Download HTML</button>
-                    <button onClick={generateBriefing} style={{background:"transparent",border:"1px solid #A45CFF44",color:"#A45CFF",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600}}>↻ Regenerate</button>
-                  </div>
-                </div>
-                <div style={{lineHeight:1.7}} dangerouslySetInnerHTML={{__html:aiResult}}/>
-                <div style={{marginTop:28,paddingTop:16,borderTop:"1px solid #1a3040",fontSize:11,color:"#2a4a5a",display:"flex",gap:16,flexWrap:"wrap"}}>
-                  <span>Generated by Claude AI (Haiku 4.5)</span><span>·</span>
-                  <span>{data.txCount.toLocaleString()} transactions · {fmtFull(data.totalSpend)} total spend</span><span>·</span>
-                  <span>NIGP 18th Edition · {data.classArr.length} categories</span>
-                </div>
-              </div>
-            )}
-
-            {!aiResult&&!aiLoading&&!aiError&&(
-              <div style={{background:"#0a1729",border:"1px dashed #A45CFF33",borderRadius:16,padding:"60px 40px",textAlign:"center"}}>
-                <div style={{fontSize:42,marginBottom:16}}>📋</div>
-                <div style={{fontSize:17,fontWeight:700,color:"#d0e8f5",marginBottom:8}}>Ready to generate your CPO briefing</div>
-                <div style={{fontSize:13,color:"#4a7a96",maxWidth:480,margin:"0 auto",lineHeight:1.6}}>
-                  Click <strong style={{color:"#C47CFF"}}>Generate Executive Briefing</strong> to have Claude AI analyze your {data.txCount.toLocaleString()} transactions and produce a board-ready executive summary.
-                </div>
-                <div style={{marginTop:20,display:"flex",flexWrap:"wrap",gap:10,justifyContent:"center",fontSize:12,color:"#3a6a86"}}>
-                  <span style={{background:"#0d1e2e",padding:"5px 12px",borderRadius:6,border:"1px solid #1a3040"}}>~10 seconds to generate</span>
-                  <span style={{background:"#0d1e2e",padding:"5px 12px",borderRadius:6,border:"1px solid #1a3040"}}>~$0.005 per briefing</span>
-                  <span style={{background:"#0d1e2e",padding:"5px 12px",borderRadius:6,border:"1px solid #1a3040"}}>Board-ready HTML export</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div style={{marginTop:14,fontSize:12,color:"#2a4a5a",textAlign:"center"}}>
-          {fileName} · {data.rowCount.toLocaleString()} rows · {data.txCount.toLocaleString()} valid transactions · {data.skipped} skipped
-        </div>
-      </div>
-=======
           {/* Footer row */}
           <div style={{marginTop:14,fontSize:12,color:"#2a4a5a",textAlign:"center"}}>
             {fileName} · {data.rowCount.toLocaleString()} rows · {data.txCount.toLocaleString()} valid transactions · {data.skipped} skipped
@@ -1366,7 +944,6 @@ export default function NIGPAnalyzer() {
 
         </div>{/* end content area */}
       </div>{/* end main layout */}
->>>>>>> c66a840 (v2 testing)
     </div>
   );
 }
