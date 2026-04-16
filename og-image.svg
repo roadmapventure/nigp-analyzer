@@ -1,0 +1,65 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&amp;family=DM+Sans:wght@300;400&amp;display=swap');
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#faf8f5"/>
+  <!-- Right panel -->
+  <rect x="720" y="0" width="480" height="630" fill="#f3efe9"/>
+  <!-- Gold rule vertical -->
+  <rect x="718" y="0" width="1" height="630" fill="rgba(200,169,110,0.35)"/>
+
+  <!-- Gold accent line top-left -->
+  <rect x="56" y="80" width="40" height="1" fill="#c8a96e"/>
+
+  <!-- Eyebrow -->
+  <text x="108" y="86" font-family="'DM Sans', sans-serif" font-size="13" font-weight="400"
+        letter-spacing="4" fill="#c8a96e" text-anchor="start"
+        style="text-transform:uppercase">PRODUCT ADVISOR · FRACTIONAL CPO</text>
+
+  <!-- Name -->
+  <text x="56" y="200" font-family="Georgia, serif" font-size="96" font-weight="300"
+        fill="#1a1814">John</text>
+  <text x="56" y="310" font-family="Georgia, serif" font-size="96" font-weight="300"
+        fill="#3a342c" font-style="italic">Leonard</text>
+
+  <!-- Tagline -->
+  <text x="56" y="390" font-family="Georgia, serif" font-size="22" font-style="italic"
+        fill="#c8a96e">Building products that grow companies.</text>
+
+  <!-- Divider -->
+  <rect x="56" y="430" width="300" height="1" fill="rgba(200,169,110,0.3)"/>
+
+  <!-- Stats -->
+  <text x="56" y="480" font-family="Georgia, serif" font-size="42" font-weight="300" fill="#1a1814">$400M+</text>
+  <text x="56" y="508" font-family="'DM Sans', sans-serif" font-size="11" letter-spacing="3" fill="#6b6057"
+        style="text-transform:uppercase">Exit Value</text>
+
+  <text x="230" y="480" font-family="Georgia, serif" font-size="42" font-weight="300" fill="#1a1814">30+</text>
+  <text x="230" y="508" font-family="'DM Sans', sans-serif" font-size="11" letter-spacing="3" fill="#6b6057"
+        style="text-transform:uppercase">Years in Product</text>
+
+  <text x="370" y="480" font-family="Georgia, serif" font-size="42" font-weight="300" fill="#1a1814">4</text>
+  <text x="370" y="508" font-family="'DM Sans', sans-serif" font-size="11" letter-spacing="3" fill="#6b6057"
+        style="text-transform:uppercase">US Patents</text>
+
+  <!-- Right panel content -->
+  <text x="780" y="200" font-family="'DM Sans', sans-serif" font-size="11" letter-spacing="3"
+        fill="#c8a96e" style="text-transform:uppercase">roadmapventure.com</text>
+
+  <!-- Decorative R -->
+  <text x="820" y="560" font-family="Georgia, serif" font-size="320" font-weight="300"
+        fill="rgba(200,169,110,0.07)">R</text>
+
+  <!-- Bottom domain bar -->
+  <rect x="0" y="590" width="1200" height="40" fill="#1a1814"/>
+  <text x="56" y="616" font-family="Georgia, serif" font-size="16" font-weight="300"
+        fill="#faf8f5" letter-spacing="1">RoadMap</text>
+  <text x="142" y="616" font-family="Georgia, serif" font-size="16"
+        fill="#c8a96e" letter-spacing="1">Venture</text>
+  <text x="270" y="616" font-family="'DM Sans', sans-serif" font-size="11" letter-spacing="3"
+        fill="rgba(250,248,245,0.35)" style="text-transform:uppercase">· Austin, TX · Product Advisory</text>
+</svg>

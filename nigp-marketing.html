@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Procurement Intelligence — NIGP Spend Analyzer · RoadMapVenture</title>
+<meta name="description" content="The only spend analysis tool built natively on the NIGP 18th Edition taxonomy. Upload any government procurement CSV and get full intelligence in 30 seconds.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ivory:   #faf8f5;
+    --ivory-2: #f3efe9;
+    --ink:     #1a1814;
+    --ink-2:   #3a342c;
+    --ink-3:   #6b6057;
+    --gold:    #c8a96e;
+    --gold-lt: #e8d9bc;
+    --rule:    rgba(200,169,110,.25);
+    /* status colors kept from original */
+    --teal:    #00c896;
+    --red:     #d94f38;
+    --amber:   #d98232;
+    --blue:    #3a7fc1;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--ivory); color: var(--ink); font-family: 'DM Sans', sans-serif; font-weight: 300; -webkit-font-smoothing: antialiased; }
+
+  /* nav styles in nav.js */
+
+  /* ── SHARED SECTION ── */
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .section-eyebrow { font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .section-eyebrow::before { content: ''; display: block; width: 24px; height: 1px; background: var(--gold); }
+  .section-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(36px,4vw,54px); font-weight: 300; line-height: 1.05; color: var(--ink); margin-bottom: 14px; }
+  .section-subtitle { font-size: 15px; color: var(--ink-3); line-height: 1.75; max-width: 580px; margin-bottom: 52px; }
+
+  .btn-primary { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ivory); background: var(--ink); padding: 14px 28px; text-decoration: none; transition: background .22s; display: inline-block; }
+  .btn-primary:hover { background: var(--ink-2); }
+  .btn-secondary { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink); border: 1px solid var(--ink); padding: 14px 28px; text-decoration: none; transition: all .22s; display: inline-block; }
+  .btn-secondary:hover { background: var(--ink); color: var(--ivory); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    padding-top: 68px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--ivory);
+  }
+  .hero-left { padding: 80px 64px 80px 56px; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--rule); }
+  .hero-eyebrow { font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .hero-eyebrow::before { content: ''; display: block; width: 28px; height: 1px; background: var(--gold); }
+  .hero-headline { font-family: 'Cormorant Garamond', serif; font-size: clamp(48px,5.5vw,76px); font-weight: 300; line-height: .95; color: var(--ink); margin-bottom: 20px; letter-spacing: -.01em; }
+  .hero-headline em { font-style: italic; color: var(--ink-2); }
+  .hero-subhead { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic; color: var(--gold); margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--rule); line-height: 1.4; }
+  .hero-body { font-size: 15px; color: var(--ink-3); line-height: 1.8; max-width: 460px; margin-bottom: 40px; }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+
+  /* ── TERMINAL PANEL (right side of hero) ── */
+  .hero-right { background: var(--ivory-2); padding: 80px 56px 80px 64px; display: flex; align-items: center; }
+  .terminal-panel {
+    width: 100%;
+    background: var(--ink);
+    border: 1px solid rgba(200,169,110,.2);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(26,24,20,.18);
+  }
+  .terminal-bar { background: var(--ink-2); padding: 11px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(200,169,110,.15); }
+  .t-dots { display: flex; gap: 6px; }
+  .t-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .terminal-filename { font-family: 'DM Mono', monospace; font-size: 11px; color: rgba(250,248,245,.45); display: flex; align-items: center; gap: 6px; }
+  .live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse-dot 2s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .terminal-body { padding: 18px 20px; }
+  .t-section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: rgba(200,169,110,.45); padding: 8px 0 6px; }
+  .t-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(200,169,110,.08); font-family: 'DM Mono', monospace; font-size: 12px; }
+  .t-row:last-child { border-bottom: none; }
+  .t-label { color: rgba(250,248,245,.4); }
+  .t-val { color: rgba(250,248,245,.85); font-weight: 500; }
+  .t-val.green { color: var(--teal); }
+  .t-val.red { color: var(--red); }
+  .t-val.amber { color: var(--amber); }
+  .t-divider { height: 1px; background: rgba(200,169,110,.12); margin: 6px 0; }
+  .t-pill { display: inline-block; padding: 2px 7px; border-radius: 2px; font-size: 9px; font-weight: 500; margin-left: 5px; font-family: 'DM Mono', monospace; letter-spacing: .06em; }
+  .pill-high { background: rgba(217,79,56,.15); color: var(--red); border: 1px solid rgba(217,79,56,.3); }
+  .pill-med  { background: rgba(217,130,50,.15); color: var(--amber); border: 1px solid rgba(217,130,50,.3); }
+  .pill-info { background: rgba(58,127,193,.15); color: var(--blue); border: 1px solid rgba(58,127,193,.3); }
+  .pill-ok   { background: rgba(0,200,150,.08); color: var(--teal); border: 1px solid rgba(0,200,150,.2); }
+
+  /* ── STATS STRIP ── */
+  .stats-strip { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: var(--ivory-2); padding: 0 56px; }
+  .stats-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(5,1fr); gap: 1px; background: var(--rule); }
+  .stat-block { background: var(--ivory-2); padding: 32px 24px; text-align: center; transition: background .2s; }
+  .stat-block:hover { background: var(--ivory); }
+  .stat-num { font-family: 'Cormorant Garamond', serif; font-size: 42px; font-weight: 300; color: var(--ink); line-height: 1; margin-bottom: 6px; }
+  .stat-num span { font-size: 20px; color: var(--gold); }
+  .stat-desc { font-size: 11px; letter-spacing: .06em; color: var(--ink-3); line-height: 1.5; }
+
+  /* ── PROBLEM ── */
+  .problem-section { border-top: 1px solid var(--rule); background: var(--ivory-2); padding: 80px 56px; }
+  .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: start; max-width: 1200px; margin: 0 auto; }
+  .big-quote { font-family: 'Cormorant Garamond', serif; font-size: clamp(22px,2.5vw,32px); font-style: italic; line-height: 1.45; color: var(--ink); margin-bottom: 28px; padding-left: 24px; border-left: 3px solid var(--gold); }
+  .problem-body { font-size: 14px; color: var(--ink-3); line-height: 1.85; margin-bottom: 14px; }
+  .pain-list { list-style: none; margin-top: 24px; }
+  .pain-list li { display: flex; align-items: flex-start; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--rule); font-size: 13.5px; color: var(--ink-3); line-height: 1.65; }
+  .pain-list li:last-child { border-bottom: none; }
+  .pain-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .pain-list strong { display: block; color: var(--ink-2); font-weight: 500; margin-bottom: 3px; font-size: 13px; }
+
+  /* ── FEATURES ── */
+  .features-section { padding: 80px 56px; }
+  .features-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .feature-card { background: var(--ivory); padding: 36px 30px; transition: background .2s; position: relative; overflow: hidden; }
+  .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: transparent; transition: background .25s; }
+  .feature-card:hover { background: var(--ivory-2); }
+  .feature-card:hover::before { background: var(--gold); }
+  .feature-icon { font-size: 26px; margin-bottom: 14px; }
+  .feature-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; color: var(--ink); margin-bottom: 10px; }
+  .feature-body { font-size: 13px; color: var(--ink-3); line-height: 1.75; }
+  .feature-tag { display: inline-block; margin-top: 14px; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--rule); padding: 3px 8px; border-radius: 2px; }
+
+  /* ── FLAGS SECTION ── */
+  .flags-section { background: var(--ivory-2); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 80px 56px; }
+  .flags-layout { display: grid; grid-template-columns: 1fr 1.1fr; gap: 72px; align-items: start; max-width: 1200px; margin: 0 auto; }
+  .flags-list { display: flex; flex-direction: column; gap: 2px; }
+  .flag-item { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid transparent; border-radius: 4px; transition: all .2s; }
+  .flag-item:hover { background: var(--ivory); border-color: var(--rule); }
+  .flag-sev { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .flag-name { font-size: 13.5px; font-weight: 500; color: var(--ink); margin-bottom: 2px; }
+  .flag-desc { font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+  .flag-badge { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; border-radius: 2px; white-space: nowrap; }
+
+  /* ── DEMO PANEL (right of flags) ── */
+  .demo-panel { background: var(--ink); border: 1px solid rgba(200,169,110,.2); border-radius: 8px; overflow: hidden; }
+  .demo-panel-header { background: var(--ink-2); padding: 14px 20px; border-bottom: 1px solid rgba(200,169,110,.15); display: flex; justify-content: space-between; align-items: center; }
+  .demo-panel-title { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 6px; }
+  .demo-panel-sub { font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(250,248,245,.35); }
+  .demo-finding { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid rgba(200,169,110,.08); gap: 10px; }
+  .demo-finding:last-child { border-bottom: none; }
+  .finding-label { font-size: 12px; color: rgba(250,248,245,.5); flex: 1; }
+  .finding-val { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .finding-sev { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .08em; padding: 2px 8px; border-radius: 2px; white-space: nowrap; }
+  .timer-box { margin-top: 16px; padding: 18px 20px; background: rgba(200,169,110,.06); border: 1px solid rgba(200,169,110,.15); border-radius: 6px; }
+  .timer-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: rgba(250,248,245,.35); margin-bottom: 8px; }
+  .timer-val { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: var(--gold); line-height: 1; }
+  .timer-val span { font-size: 22px; color: rgba(250,248,245,.35); }
+  .timer-desc { font-size: 12px; color: rgba(250,248,245,.4); margin-top: 8px; line-height: 1.6; }
+
+  /* ── AI SECTION ── */
+  .ai-section { padding: 80px 56px; border-top: 1px solid var(--rule); }
+  .ai-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: start; max-width: 1200px; margin: 0 auto; }
+  .ai-body { font-size: 14px; color: var(--ink-3); line-height: 1.85; margin-bottom: 20px; }
+  .ai-coming-card { padding: 20px 24px; background: var(--ivory-2); border: 1px solid var(--rule); border-radius: 4px; margin-top: 8px; }
+  .ai-coming-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
+  .ai-coming-body { font-size: 13px; color: var(--ink-3); line-height: 1.7; }
+
+  /* Briefing card */
+  .ai-briefing-card { background: var(--ink); border: 1px solid rgba(200,169,110,.2); border-radius: 8px; overflow: hidden; box-shadow: 0 20px 56px rgba(26,24,20,.12); }
+  .ai-card-header { background: var(--ink-2); border-bottom: 1px solid rgba(200,169,110,.15); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .ai-card-label { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-style: italic; color: var(--gold); }
+  .ai-badge { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .1em; color: rgba(250,248,245,.45); border: 1px solid rgba(200,169,110,.2); padding: 3px 10px; border-radius: 2px; }
+  .ai-card-body { padding: 20px; }
+  .ai-excerpt { font-size: 13px; color: rgba(250,248,245,.6); line-height: 1.75; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(200,169,110,.1); font-style: italic; }
+  .ai-excerpt strong { color: var(--gold); font-style: normal; }
+  .ai-actions-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: rgba(200,169,110,.45); margin-bottom: 12px; }
+  .ai-actions-row { display: flex; flex-direction: column; gap: 10px; }
+  .ai-action { display: flex; align-items: flex-start; gap: 12px; font-size: 12px; color: rgba(250,248,245,.5); line-height: 1.6; }
+  .ai-action-num { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--gold); background: rgba(200,169,110,.1); border: 1px solid rgba(200,169,110,.2); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── AUDIENCE ── */
+  .audience-section { background: var(--ivory-2); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 80px 56px; }
+  .audience-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .audience-card { background: var(--ivory-2); padding: 48px 40px; transition: background .2s; }
+  .audience-card:hover { background: var(--ivory); }
+  .audience-who { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+  .audience-title { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--ink); margin-bottom: 18px; }
+  .audience-body { font-size: 14px; color: var(--ink-3); line-height: 1.8; margin-bottom: 26px; }
+  .value-list { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .value-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--ink-3); line-height: 1.55; }
+  .value-list li::before { content: '→'; color: var(--gold); font-family: 'DM Mono', monospace; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── ROADMAP ── */
+  .roadmap-section { padding: 80px 56px; }
+  .roadmap-items { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .roadmap-item { background: var(--ivory); padding: 32px 26px; transition: background .2s; }
+  .roadmap-item:hover { background: var(--ivory-2); }
+  .roadmap-phase { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+  .roadmap-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; color: var(--ink); margin-bottom: 12px; }
+  .roadmap-body { font-size: 12.5px; color: var(--ink-3); line-height: 1.65; }
+  .roadmap-status { margin-top: 16px; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; border-radius: 2px; display: inline-block; }
+  .status-live   { background: rgba(0,200,150,.08); color: var(--teal); border: 1px solid rgba(0,200,150,.2); }
+  .status-soon   { background: rgba(200,169,110,.1); color: var(--gold); border: 1px solid rgba(200,169,110,.25); }
+  .status-future { background: rgba(58,127,193,.08); color: var(--blue); border: 1px solid rgba(58,127,193,.2); }
+  .status-partner { background: rgba(200,169,110,.06); color: var(--gold); border: 1px solid rgba(200,169,110,.18); }
+
+  /* ── SECURITY ── */
+  .security-section { background: var(--ivory-2); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 80px 56px; }
+  .security-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; max-width: 1200px; margin: 0 auto; }
+  .security-body { font-size: 14px; color: var(--ink-3); line-height: 1.85; }
+  .security-points { display: flex; flex-direction: column; gap: 16px; }
+  .security-point { display: flex; gap: 16px; align-items: flex-start; padding: 18px 20px; border: 1px solid var(--rule); border-radius: 6px; background: var(--ivory); transition: border-color .2s; }
+  .security-point:hover { border-color: var(--gold); }
+  .sec-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+  .sec-title { font-size: 13.5px; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+  .sec-body { font-size: 12.5px; color: var(--ink-3); line-height: 1.65; }
+
+  /* ── CTA ── */
+  .cta-section { padding: 100px 56px; text-align: center; }
+  .cta-inner { max-width: 660px; margin: 0 auto; }
+  .cta-section .section-title { font-size: clamp(44px,5vw,64px); margin-bottom: 16px; }
+  .cta-section .section-subtitle { margin: 0 auto 36px; text-align: center; }
+  .cta-buttons { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .cta-footnote { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .1em; color: var(--ink-3); }
+
+  /* ── FOOTER ── */
+  footer { background: var(--ink); color: rgba(250,248,245,.35); padding: 32px 56px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(200,169,110,.15); }
+  .footer-logo { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--ivory); text-decoration: none; opacity: .8; }
+  .footer-copy { font-size: 11px; letter-spacing: .05em; }
+  .footer-links { display: flex; gap: 28px; list-style: none; }
+  .footer-links a { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: rgba(250,248,245,.35); text-decoration: none; transition: color .2s; }
+  .footer-links a:hover { color: var(--gold); }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  .hero-left { animation: fadeUp .6s ease both; }
+  .hero-right { animation: fadeUp .6s .15s ease both; }
+
+  @media (max-width: 1024px) {
+    nav { padding: 0 28px; }
+    .hero { grid-template-columns: 1fr; }
+    .hero-left, .hero-right { padding: 60px 28px; }
+    .hero-right { background: var(--ivory-2); }
+    .problem-section, .features-section, .flags-section, .ai-section, .audience-section, .roadmap-section, .security-section, .cta-section { padding: 60px 28px; }
+    .stats-strip { padding: 0 28px; }
+    .stats-inner { grid-template-columns: repeat(3,1fr); }
+    .problem-grid, .flags-layout, .ai-layout, .security-layout { grid-template-columns: 1fr; gap: 40px; }
+    .features-grid { grid-template-columns: 1fr 1fr; }
+    .roadmap-items { grid-template-columns: 1fr 1fr; }
+    .audience-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 16px; text-align: center; padding: 28px; }
+  }
+  @media (max-width: 640px) {
+    .nav-links { display: none; }
+    .features-grid, .roadmap-items, .stats-inner { grid-template-columns: 1fr; }
+  }
+</style>
+  <script src="nav.js"></script>
+<script>document.addEventListener("DOMContentLoaded",function(){initNav("nigp-marketing.html");});</script>
+
+  <!-- Open Graph / iMessage / Social Preview -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:site_name"   content="RoadMapVenture" />
+  <meta property="og:url"         content="https://roadmapventure.com/nigp-marketing.html" />
+  <meta property="og:title"       content="NIGP Spend Analyzer — Government Procurement Intelligence" />
+  <meta property="og:description" content="The only spend analysis tool built natively on the NIGP 18th Edition taxonomy. Upload any government procurement CSV. Full intelligence in 30 seconds." />
+  <meta property="og:image"       content="https://roadmapventure.com/og-image.png" />
+  <meta property="og:image:width"  content="1200" />
+  <meta property="og:image:height" content="630" />
+  <!-- Twitter / X card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="NIGP Spend Analyzer — Government Procurement Intelligence" />
+  <meta name="twitter:description" content="The only spend analysis tool built natively on the NIGP 18th Edition taxonomy. Upload any government procurement CSV. Full intelligence in 30 seconds." />
+  <meta name="twitter:image"       content="https://roadmapventure.com/og-image.png" />
+  <!-- iOS / Apple -->
+  <meta name="apple-mobile-web-app-title" content="RoadMapVenture" />
+  <link rel="canonical" href="https://roadmapventure.com/nigp-marketing.html" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+</head>
+<body>
+
+<!-- NAV -->
+
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">Government Procurement Intelligence</div>
+    <h1 class="hero-headline">
+      Your Spend Data.<br>
+      <em>Analyzed in</em><br>
+      30 Seconds.
+    </h1>
+    <p class="hero-subhead">The only spend analysis tool built natively on the NIGP 18th Edition taxonomy.</p>
+    <p class="hero-body">Upload any government procurement CSV. Instantly classify every transaction across 264 NIGP classes and 8,239 subclasses. Surface procurement risks, vendor concentration, maverick spend, and data quality issues — before your first cup of coffee.</p>
+    <div class="hero-ctas">
+      <a href="https://nigp.roadmapventure.com" target="_blank" class="btn-primary">Request Early Access</a>
+      <a href="#features" class="btn-secondary">See How It Works</a>
+      <a href="https://nigp.roadmapventure.com" target="_blank" class="btn-secondary">Launch App ↗</a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="terminal-panel">
+      <div class="terminal-bar">
+        <div class="t-dots">
+          <div class="t-dot" style="background:#d94f38"></div>
+          <div class="t-dot" style="background:#d98232"></div>
+          <div class="t-dot" style="background:#00c896"></div>
+        </div>
+        <div class="terminal-filename"><span class="live-dot"></span>Austin_FY2025_Procurement.csv — Analysis Complete</div>
+      </div>
+      <div class="terminal-body">
+        <div class="t-section-label">Portfolio Summary</div>
+        <div class="t-row"><span class="t-label">Total Spend Analyzed</span><span class="t-val green">$372,988,798</span></div>
+        <div class="t-row"><span class="t-label">Transactions Processed</span><span class="t-val">11,711</span></div>
+        <div class="t-row"><span class="t-label">NIGP Classes Identified</span><span class="t-val">~60 unique classes</span></div>
+        <div class="t-row"><span class="t-label">Vendor HHI Score</span><span class="t-val amber">~850 <span class="t-pill pill-med">Moderate</span></span></div>
+        <div class="t-divider"></div>
+        <div class="t-section-label">Procurement Health Flags</div>
+        <div class="t-row"><span class="t-label">Maverick Spend</span><span class="t-val red">$33.6M (9%) <span class="t-pill pill-high">HIGH</span></span></div>
+        <div class="t-row"><span class="t-label">Spending Spike — October</span><span class="t-val amber">$60.4M (2.1× avg) <span class="t-pill pill-med">MED</span></span></div>
+        <div class="t-row"><span class="t-label">Top Vendor Concentration</span><span class="t-val">Motorola — 7.8% share</span></div>
+        <div class="t-row"><span class="t-label">Data Quality Issues</span><span class="t-val">380 rows / $5.3M <span class="t-pill pill-info">REVIEW</span></span></div>
+        <div class="t-divider"></div>
+        <div class="t-row"><span class="t-label">Analysis Time</span><span class="t-val green"><span class="t-pill pill-ok">✓ 28 seconds</span></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── STATS STRIP ── -->
+<div class="stats-strip">
+  <div class="stats-inner">
+    <div class="stat-block"><div class="stat-num">264<span> cls</span></div><div class="stat-desc">Full NIGP 18th Edition taxonomy, bundled natively</div></div>
+    <div class="stat-block"><div class="stat-num">8,239</div><div class="stat-desc">Subclasses indexed for precision classification</div></div>
+    <div class="stat-block"><div class="stat-num">6</div><div class="stat-desc">Procurement health flags run automatically on every upload</div></div>
+    <div class="stat-block"><div class="stat-num">0</div><div class="stat-desc">Servers. Your data never leaves the browser.</div></div>
+    <div class="stat-block"><div class="stat-num">30<span>s</span></div><div class="stat-desc">Average time from upload to full procurement analysis</div></div>
+  </div>
+</div>
+
+<!-- ── AI SECTION ── -->
+<section class="ai-section" id="ai">
+  <div class="ai-layout">
+    <div>
+      <div class="section-eyebrow">AI-Powered Intelligence</div>
+      <h2 class="section-title">From Raw Data to Board-Ready Briefing.</h2>
+      <p class="section-subtitle">One click generates a complete CPO executive narrative — in the voice of a senior procurement analyst.</p>
+      <p class="ai-body">The AI Executive Briefing reads your spend data, health flags, and vendor concentration scores — then writes a complete procurement narrative structured for leadership presentation. Portfolio overview, risk exposure analysis, and three concrete 90-day strategic actions.</p>
+      <p class="ai-body">Powered by Claude AI. Built on NIGP methodology. Grounded in your actual data — not generic benchmarks.</p>
+      <div class="ai-coming-card">
+        <div class="ai-coming-label">Coming Next: RAG-Powered NIGP Intelligence</div>
+        <div class="ai-coming-body">The next version grounds the AI analysis layer in NIGP's own consulting methodology and best practices — so every recommendation reflects NIGP's standards, not generic procurement advice. A first-of-its-kind NIGP knowledge base powering procurement intelligence.</div>
+      </div>
+    </div>
+    <div class="ai-briefing-card">
+      <div class="ai-card-header">
+        <div class="ai-card-label">✦ AI CPO Executive Briefing</div>
+        <div class="ai-badge">Powered by Claude</div>
+      </div>
+      <div class="ai-card-body">
+        <div class="ai-excerpt">The City of Austin's FY2025 procurement portfolio reflects <strong>$372.9M in annual spend</strong> across 60 NIGP categories. The most significant risk exposure is concentrated in maverick spend — <strong>$33.6M transacted outside any contract framework</strong>, representing 9% of total spend and a high-priority compliance concern requiring immediate remediation through strategic sourcing initiatives.</div>
+        <div class="ai-actions-label">90-Day Strategic Actions</div>
+        <div class="ai-actions-row">
+          <div class="ai-action"><div class="ai-action-num">1</div><div>Initiate competitive solicitations for the top 10 off-contract vendor relationships, targeting $8–12M in recoverable savings through contract consolidation.</div></div>
+          <div class="ai-action"><div class="ai-action-num">2</div><div>Conduct a market survey for Law Enforcement technology categories where Motorola Solutions holds a dominant $29.2M position — assess viable alternatives before next renewal.</div></div>
+          <div class="ai-action"><div class="ai-action-num">3</div><div>Implement spending controls for October and December to prevent "use it or lose it" budget behavior — crosswalk spike transactions against fiscal year-end purchase justifications.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PROBLEM ── -->
+<section class="problem-section" id="problem">
+  <div class="problem-grid">
+    <div>
+      <div class="section-eyebrow">The Problem</div>
+      <div class="big-quote">"Every engagement starts from scratch. Hours of Excel work before any real analysis begins."</div>
+      <p class="problem-body">Government procurement consultants and agency CPOs are sitting on goldmines of spend data — but the tools to analyze it don't exist at the right level. Enterprise platforms like Coupa and Jaggaer cost millions and take months to deploy. General BI tools have no concept of NIGP taxonomy. So everyone does it manually.</p>
+      <p class="problem-body">The result: the most important procurement intelligence — the kind that could save agencies millions and protect taxpayers — stays buried in spreadsheets.</p>
+    </div>
+    <div>
+      <ul class="pain-list">
+        <li><span class="pain-icon">⏱</span><div><strong>Hours lost to classification</strong>Before a consultant can analyze spend, they spend half a day mapping columns and classifying transactions against NIGP codes manually.</div></li>
+        <li><span class="pain-icon">📊</span><div><strong>No NIGP-native tool exists</strong>Every tool in the market speaks UNSPSC or custom taxonomies. Nothing is built natively around the 18th Edition NIGP code that governs 33 states and thousands of local agencies.</div></li>
+        <li><span class="pain-icon">🔍</span><div><strong>Risk buried in plain sight</strong>Maverick spend, PO splitting, single-source concentration — these compliance risks are present in almost every agency's data. But finding them manually takes days.</div></li>
+        <li><span class="pain-icon">💸</span><div><strong>Enterprise tools aren't built for government</strong>The platforms used by Fortune 500 procurement teams are inaccessible to most government agencies — too expensive, too complex, and not NIGP-aware.</div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="features-section" id="features">
+  <div class="section-inner">
+    <div class="section-eyebrow">Core Capabilities</div>
+    <h2 class="section-title">Everything a CPO Needs.<br>Nothing They Don't.</h2>
+    <p class="section-subtitle">Purpose-built for government procurement. Upload a CSV, confirm column mapping, and let the engine work.</p>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon">🏷</div><div class="feature-title">NIGP Classification Engine</div><div class="feature-body">Every transaction classified against the full NIGP 18th Edition — 264 classes, 8,239 subclasses — in seconds. Works on any government CSV export, regardless of column schema. Auto-detects and maps your columns.</div><span class="feature-tag">18th Edition Native</span></div>
+      <div class="feature-card"><div class="feature-icon">⚠️</div><div class="feature-title">Procurement Health Flags</div><div class="feature-body">Six automated compliance and risk checks run on every upload. Maverick spend, PO splitting, single-source concentration, spending spikes, vendor sprawl, and out-of-state compliance — all flagged with dollar exposure and remediation guidance.</div><span class="feature-tag">6 Automated Checks</span></div>
+      <div class="feature-card"><div class="feature-icon">📊</div><div class="feature-title">Vendor Risk Intelligence</div><div class="feature-body">HHI concentration scoring, cumulative spend curves, category dominance tables. Instantly identify which vendors represent monopolistic risk, where competition has broken down, and which categories need market surveys.</div><span class="feature-tag">HHI Scoring</span></div>
+      <div class="feature-card"><div class="feature-icon">🤖</div><div class="feature-title">AI Executive Briefing</div><div class="feature-body">One click generates a board-ready CPO narrative using Claude AI — portfolio overview, risk assessment, and three concrete 90-day strategic opportunities. A first draft in 30 seconds, not a blank page.</div><span class="feature-tag">Powered by Claude AI</span></div>
+      <div class="feature-card"><div class="feature-icon">🧹</div><div class="feature-title">Data Quality Cleanup</div><div class="feature-body">Missing, malformed, and unrecognized NIGP codes are surfaced with suggested corrections. Know exactly how much spend is at risk due to data quality issues before you present to leadership.</div><span class="feature-tag">Code Validation</span></div>
+      <div class="feature-card"><div class="feature-icon">🗺</div><div class="feature-title">10 Analysis Views</div><div class="feature-body">Overview, Concerns, Vendor Risk, Categories, Treemap, Vendors, Departments, Timeline, Full Table, and Data Cleanup — all driven by a single CSV upload. Every view is interactive, filterable, and exportable.</div><span class="feature-tag">10 Interactive Tabs</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FLAGS ── -->
+<section class="flags-section" id="flags">
+  <div class="flags-layout">
+    <div>
+      <div class="section-eyebrow">Procurement Health Flags</div>
+      <h2 class="section-title">Six Checks.<br>Automatic.<br>Every Upload.</h2>
+      <p class="section-subtitle">The risks that cost agencies millions — surfaced the moment your file is analyzed.</p>
+      <div class="flags-list">
+        <div class="flag-item"><div class="flag-sev" style="background:var(--red)"></div><div class="flag-content"><div class="flag-name">Maverick Spend</div><div class="flag-desc">Purchases made outside any master agreement or contract — typically 15–25% more expensive than contracted prices.</div></div><div class="flag-badge pill-high">HIGH</div></div>
+        <div class="flag-item"><div class="flag-sev" style="background:var(--red)"></div><div class="flag-content"><div class="flag-name">PO Splitting</div><div class="flag-desc">3+ purchase orders to the same vendor on the same date — a common method to circumvent approval thresholds.</div></div><div class="flag-badge pill-high">HIGH</div></div>
+        <div class="flag-item"><div class="flag-sev" style="background:var(--red)"></div><div class="flag-content"><div class="flag-name">Single-Source Concentration</div><div class="flag-desc">One vendor controlling 80%+ of a category worth $250K+. Limits competition and price leverage.</div></div><div class="flag-badge pill-high">HIGH</div></div>
+        <div class="flag-item"><div class="flag-sev" style="background:var(--amber)"></div><div class="flag-content"><div class="flag-name">Abnormal Spending Spikes</div><div class="flag-desc">Months at 1.8× the average — classic "use it or lose it" fiscal year-end budget behavior.</div></div><div class="flag-badge pill-med">MEDIUM</div></div>
+        <div class="flag-item"><div class="flag-sev" style="background:var(--gold)"></div><div class="flag-content"><div class="flag-name">Long-Tail Vendor Sprawl</div><div class="flag-desc">Hundreds of micro-vendors generating administrative overhead disproportionate to their spend contribution.</div></div><div class="flag-badge" style="background:rgba(200,169,110,.1);color:var(--gold);border:1px solid rgba(200,169,110,.3)">LOW</div></div>
+        <div class="flag-item"><div class="flag-sev" style="background:var(--blue)"></div><div class="flag-content"><div class="flag-name">Out-of-State Vendor Spend</div><div class="flag-desc">Out-of-state spend exceeding 40% of total — triggers local vendor preference compliance review.</div></div><div class="flag-badge pill-info">INFO</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="demo-panel">
+        <div class="demo-panel-header">
+          <div class="demo-panel-title"><span class="live-dot"></span>Live Example — City of Austin FY2025</div>
+          <div class="demo-panel-sub">$372M · 11,711 transactions</div>
+        </div>
+        <div class="demo-finding"><div class="finding-label">Maverick Spend Detected</div><div class="finding-val" style="color:var(--red)">$33,600,000</div><div class="finding-sev pill-high">9% of total</div></div>
+        <div class="demo-finding"><div class="finding-label">October Spending Spike</div><div class="finding-val" style="color:var(--amber)">$60,400,000</div><div class="finding-sev pill-med">2.1× average</div></div>
+        <div class="demo-finding"><div class="finding-label">December Spending Spike</div><div class="finding-val" style="color:var(--amber)">$53,200,000</div><div class="finding-sev pill-med">1.9× average</div></div>
+        <div class="demo-finding"><div class="finding-label">Top Vendor — Motorola Solutions</div><div class="finding-val" style="color:rgba(250,248,245,.8)">$29,200,000</div><div class="finding-sev pill-info">7.8% share</div></div>
+        <div class="demo-finding"><div class="finding-label">Data Quality Issues</div><div class="finding-val" style="color:var(--blue)">380 transactions</div><div class="finding-sev pill-info">$5.3M at risk</div></div>
+        <div class="demo-finding"><div class="finding-label">Vendor HHI Score</div><div class="finding-val" style="color:var(--teal)">~850</div><div class="finding-sev pill-ok">Competitive</div></div>
+      </div>
+      <div class="timer-box">
+        <div class="timer-label">Analysis completed in</div>
+        <div class="timer-val">28 <span>seconds</span></div>
+        <div class="timer-desc">What previously took hours of Excel work, now takes less than a minute from upload to full procurement intelligence report.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── AUDIENCE ── -->
+<section class="audience-section" id="audience">
+  <div class="section-inner">
+    <div class="section-eyebrow">Who It's Built For</div>
+    <h2 class="section-title">Two Audiences. One Tool.</h2>
+    <p class="section-subtitle">Whether you run procurement for an agency or consult for them, this is your unfair advantage.</p>
+    <div class="audience-grid">
+      <div class="audience-card">
+        <div class="audience-who">For Chief Procurement Officers</div>
+        <div class="audience-title">Govern With Clarity.</div>
+        <p class="audience-body">You're responsible for hundreds of millions in public spend. Your team has the data. What's been missing is the intelligence layer that turns raw transaction exports into actionable leadership insight — without a six-month implementation project.</p>
+        <ul class="value-list">
+          <li>Know your compliance risk exposure before your auditors do</li>
+          <li>Present a board-ready spend briefing in under an hour</li>
+          <li>Identify maverick spend and vendor concentration in seconds</li>
+          <li>Track data quality issues that undermine your NIGP reporting</li>
+          <li>No IT deployment. No vendor contract. Works today.</li>
+        </ul>
+      </div>
+      <div class="audience-card">
+        <div class="audience-who">For NIGP Consultants</div>
+        <div class="audience-title">Accelerate Every Engagement.</div>
+        <p class="audience-body">Your value is the analysis and the strategy — not the data wrangling. Right now, the first 48 hours of every spend analysis engagement is setup work. This tool eliminates that entirely, so your consultants can lead with insight from the first meeting.</p>
+        <ul class="value-list">
+          <li>Upload client data and have health flags in under a minute</li>
+          <li>Arrive to client kickoffs with findings, not questions</li>
+          <li>Standardize your diagnostic methodology across all engagements</li>
+          <li>Generate AI-drafted executive briefings as starting points</li>
+          <li>Built on NIGP taxonomy — the language your clients already speak</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ROADMAP ── -->
+<section class="roadmap-section" id="roadmap">
+  <div class="section-inner">
+    <div class="section-eyebrow">Product Roadmap</div>
+    <h2 class="section-title">Built Today.<br>Expanding Tomorrow.</h2>
+    <p class="section-subtitle">A focused v1 that works right now, with a clear path to the platform government procurement has always needed.</p>
+    <div class="roadmap-items">
+      <div class="roadmap-item"><div class="roadmap-phase">Phase 1 — Now</div><div class="roadmap-title">Core Analysis Engine</div><div class="roadmap-body">Full NIGP classification, 6 health flags, vendor HHI scoring, AI executive briefing, data cleanup, 10 analysis views. 100% browser-side. No setup required.</div><div class="roadmap-status status-live">✓ Live</div></div>
+      <div class="roadmap-item"><div class="roadmap-phase">Phase 2 — Near Term</div><div class="roadmap-title">Consultant Workflow Tools</div><div class="roadmap-body">Year-over-year comparison, PDF report export, contract utilization analysis, micro-purchase tracking, category drill-down. Built around consultant engagement workflows.</div><div class="roadmap-status status-soon">In Development</div></div>
+      <div class="roadmap-item"><div class="roadmap-phase">Phase 3 — Partnership</div><div class="roadmap-title">NIGP RAG Intelligence</div><div class="roadmap-body">RAG-powered AI grounded in NIGP's consulting methodology and best practices. Every recommendation reflects NIGP standards. The first NIGP-native intelligence engine.</div><div class="roadmap-status status-partner">Partnership Track</div></div>
+      <div class="roadmap-item"><div class="roadmap-phase">Phase 4 — Scale</div><div class="roadmap-title">Government SaaS Platform</div><div class="roadmap-body">Multi-agency accounts, benchmarking across peer jurisdictions, diversity spend tracking (HUB/MBE/WBE), saved analyses, and an API for ERP integration.</div><div class="roadmap-status status-future">On Roadmap</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SECURITY ── -->
+<section class="security-section" id="security">
+  <div class="security-layout">
+    <div>
+      <div class="section-eyebrow">Data Security</div>
+      <h2 class="section-title">Your Data Never Leaves Your Machine.</h2>
+      <p class="section-subtitle">The architecture that government IT departments approve in days, not months.</p>
+      <p class="security-body">Government procurement data is sensitive. Contract values, vendor relationships, spend patterns — this isn't data that should live on a vendor's server. The NIGP Spend Analyzer is 100% browser-side. Every calculation, every classification, every chart happens locally on your device.</p>
+    </div>
+    <div class="security-points">
+      <div class="security-point"><div class="sec-icon">🔒</div><div><div class="sec-title">Zero Data Egress</div><div class="sec-body">Your CSV file is parsed and processed entirely in the browser. No upload to a server. No data transmission. The file stays on your machine at all times.</div></div></div>
+      <div class="security-point"><div class="sec-icon">⚡</div><div><div class="sec-title">No Backend Infrastructure</div><div class="sec-body">There is no server, no database, no cloud storage. The entire application runs in your browser — which means no infrastructure to breach, audit, or procure.</div></div></div>
+      <div class="security-point"><div class="sec-icon">✅</div><div><div class="sec-title">IT-Friendly by Design</div><div class="sec-body">No installation. No admin rights. No data processing agreements on day one. Government IT teams can greenlight this tool without a full security review cycle.</div></div></div>
+      <div class="security-point"><div class="sec-icon">🌐</div><div><div class="sec-title">Works Anywhere</div><div class="sec-body">Any modern browser, any operating system, any device. Share a link — no license keys, no installer, no IT ticket required to get your team started.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section" id="cta">
+  <div class="cta-inner">
+    <div class="section-eyebrow" style="justify-content:center;">Get Started</div>
+    <h2 class="section-title">Ready to See<br><em style="font-style:italic;color:var(--gold)">What's In Your Data?</em></h2>
+    <p class="section-subtitle">Request early access or schedule a live demo with real procurement data from your agency.</p>
+    <div class="cta-buttons">
+      <a href="https://nigp.roadmapventure.com" target="_blank" class="btn-primary">Request Early Access</a>
+      <a href="#" onclick="showDemoContact();return false;" class="btn-secondary">Schedule a Demo</a>
+    </div>
+    <div class="cta-footnote">No installation · No IT ticket · Works in any browser · Government data never leaves your machine</div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a class="footer-logo" href="index.html">RoadMapVenture</a>
+  <span class="footer-copy">© 2025 John Leonard · Austin, TX · Built on NIGP 18th Edition</span>
+  <ul class="footer-links">
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="playbook.html">The Product Playbook</a></li>
+    <li><a href="https://www.linkedin.com/in/leonardjohn/" target="_blank">LinkedIn ↗</a></li>
+  </ul>
+</footer>
+
+
+
+</body>
+</html>
