@@ -486,6 +486,31 @@ export default function NIGPAnalyzer() {
               </div>
 
               {error&&<div style={{marginTop:16,background:"rgba(239,83,80,0.1)",border:"1px solid #ef535044",borderRadius:10,padding:"12px 16px",color:"#ff8a80",fontSize:14}}>⚠ {error}</div>}
+
+              {/* #3 — Demo card */}
+              <div style={{marginTop:16,background:"#0a1729",border:"1px solid #1e3a4a",borderRadius:14,padding:"20px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#d0e8f5",marginBottom:4}}>Don't have data available?</div>
+                  <div style={{fontSize:12,color:"#5a8aaa",lineHeight:1.6,maxWidth:440}}>
+                    Use the City of Austin's public spend data. Simply click the Demo button below, and you will see the full workflow.
+                  </div>
+                </div>
+                <button onClick={async()=>{
+                  setLoading(true); setError("");
+                  try {
+                    const res = await fetch("/Austin_2025Data_.csv");
+                    if(!res.ok) throw new Error("Could not load demo file");
+                    const blob = await res.blob();
+                    const file = new File([blob],"Austin_2025Data_.csv",{type:"text/csv"});
+                    processFile(file);
+                  } catch(e){
+                    setLoading(false);
+                    setError("Demo failed to load: "+e.message);
+                  }
+                }} style={{background:"linear-gradient(135deg,#29B6F6,#0088FE)",border:"none",color:"#fff",borderRadius:10,padding:"11px 28px",cursor:"pointer",fontSize:14,fontWeight:700,whiteSpace:"nowrap",flexShrink:0,boxShadow:"0 4px 16px rgba(41,182,246,0.3)"}}>
+                  ▶ Demo
+                </button>
+              </div>
             </div>
           )}
 
@@ -1027,9 +1052,9 @@ export default function NIGPAnalyzer() {
                 );
               })()}
 
-              {/* #9 — AI Briefing: remove chips, center button */}
+              {/* AI Briefing */}
               {activeTab==="aibriefing"&&(
-                <div>
+                <div style={{maxWidth:820,margin:"0 auto"}}>
                   <div style={{textAlign:"center",marginBottom:28}}>
                     <div style={{fontSize:20,fontWeight:800,marginBottom:6}}>
                       <span style={{background:"linear-gradient(135deg,#A45CFF,#FF6B9D)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>✨ AI CPO Executive Briefing</span>
@@ -1037,7 +1062,6 @@ export default function NIGPAnalyzer() {
                     <div style={{fontSize:13,color:"#5a8aaa",marginBottom:20,lineHeight:1.5}}>
                       Powered by Claude AI · Produces a board-ready executive summary from your spend data in ~30 seconds.
                     </div>
-                    {/* #9 — centered button */}
                     <button onClick={generateBriefing} disabled={aiLoading}
                       style={{background:aiLoading?"#1a2a3a":"linear-gradient(135deg,#A45CFF,#FF6B9D)",border:"none",color:"#fff",borderRadius:12,padding:"14px 40px",cursor:aiLoading?"not-allowed":"pointer",fontSize:16,fontWeight:700,boxShadow:aiLoading?"none":"0 4px 24px rgba(164,92,255,0.35)",transition:"all 0.2s"}}>
                       {aiLoading?"⏳ Generating…":"⚡ Generate Executive Briefing"}
@@ -1055,19 +1079,46 @@ export default function NIGPAnalyzer() {
                   )}
 
                   {aiResult&&!aiLoading&&(
-                    <div style={{background:"#0a1729",border:"1px solid #A45CFF44",borderRadius:16,padding:"32px 36px"}}>
-                      <div style={{borderBottom:"1px solid #1a3040",paddingBottom:20,marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
+                    <div style={{background:"#0a1729",border:"1px solid #A45CFF44",borderRadius:16,padding:"32px 40px"}}>
+                      <div style={{borderBottom:"1px solid #1a3040",paddingBottom:20,marginBottom:28,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
                         <div>
                           <div style={{fontSize:11,color:"#A45CFF",fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:5}}>CONFIDENTIAL · EXECUTIVE BRIEFING</div>
-                          <div style={{fontSize:22,fontWeight:800,color:"#e8f4ff",marginBottom:4}}>Procurement Intelligence Report</div>
+                          <div style={{fontSize:20,fontWeight:800,color:"#e8f4ff",marginBottom:4}}>Procurement Intelligence Report</div>
                           <div style={{fontSize:13,color:"#5a8aaa"}}>{fileName} · Generated {new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})}</div>
                         </div>
-                        <div style={{display:"flex",gap:8}}>
-                          <button onClick={()=>{ const blob=new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CPO Briefing</title><style>body{background:#080f18;font-family:'Segoe UI',sans-serif;color:#c8dcea;max-width:860px;margin:0 auto;padding:40px}h2{color:#A45CFF;font-size:13px;text-transform:uppercase;letter-spacing:.12em;border-bottom:1px solid #1a3040;padding-bottom:8px;margin-top:32px}h3{color:#e8f4ff}p{color:#8ab4cc;line-height:1.7}strong{color:#d0e8f5}</style></head><body><h1 style="color:#e8f4ff">Procurement Intelligence Report</h1><p style="color:#5a8aaa">${fileName} · ${new Date().toLocaleDateString()}</p>${aiResult}</body></html>`],{type:"text/html"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="cpo-briefing.html"; a.click(); }} style={{background:"#0d1e2e",border:"1px solid #1e3a4a",color:"#7aafc9",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600}}>⬇ Download HTML</button>
+                        <div style={{display:"flex",gap:8,flexShrink:0}}>
+                          {/* #2 — PDF download via print-to-PDF */}
+                          <button onClick={()=>{
+                            const printWindow = window.open("","_blank","width=900,height=700");
+                            printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CPO Briefing — ${fileName}</title><style>
+                              @page { margin: 2cm; }
+                              * { box-sizing: border-box; }
+                              body { background: #fff; font-family: 'Segoe UI', Georgia, sans-serif; color: #1a1a2e; max-width: 100%; padding: 0; font-size: 13px; line-height: 1.7; }
+                              h1 { font-size: 22px; color: #1a1a2e; margin: 0 0 4px; }
+                              h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: #6a4caf; border-bottom: 1px solid #e0d0f0; padding-bottom: 6px; margin-top: 28px; margin-bottom: 12px; }
+                              h3 { font-size: 14px; color: #1a1a2e; margin-bottom: 8px; }
+                              p { color: #333; margin: 0 0 12px; }
+                              strong { color: #1a1a2e; }
+                              .meta { font-size: 12px; color: #888; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #e8e0f5; }
+                              .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e0d0f0; font-size: 11px; color: #aaa; }
+                              @media print { body { font-size: 12px; } }
+                            </style></head><body>
+                              <h1>Procurement Intelligence Report</h1>
+                              <div class="meta">${fileName} &nbsp;·&nbsp; Generated ${new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})}</div>
+                              ${aiResult}
+                              <div class="footer">Generated by NIGP Spend Analyzer · Claude AI · ${data.txCount.toLocaleString()} transactions · ${fmtFull(data.totalSpend)} total spend</div>
+                            </body></html>`);
+                            printWindow.document.close();
+                            printWindow.focus();
+                            setTimeout(()=>{ printWindow.print(); printWindow.close(); }, 500);
+                          }} style={{background:"#0d1e2e",border:"1px solid #1e3a4a",color:"#7aafc9",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600}}>
+                            ⬇ Download PDF
+                          </button>
                           <button onClick={generateBriefing} style={{background:"transparent",border:"1px solid #A45CFF44",color:"#A45CFF",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600}}>↻ Regenerate</button>
                         </div>
                       </div>
-                      <div style={{lineHeight:1.7}} dangerouslySetInnerHTML={{__html:aiResult}}/>
+                      {/* #1 — proper font sizes and line-height for brief body */}
+                      <div style={{fontSize:14,lineHeight:1.8,color:"#c8dcea"}} dangerouslySetInnerHTML={{__html:aiResult}}/>
                       <div style={{marginTop:28,paddingTop:16,borderTop:"1px solid #1a3040",fontSize:11,color:"#2a4a5a",display:"flex",gap:16,flexWrap:"wrap"}}>
                         <span>Generated by Claude AI</span><span>·</span>
                         <span>{data.txCount.toLocaleString()} transactions · {fmtFull(data.totalSpend)} total spend</span>
