@@ -204,6 +204,8 @@ const TimelinePctLabel = ({x,y,width,value,total}) => {
 
 export default function NIGPAnalyzer() {
   const [stage,setStage]=useState("overview"); // #1 — start on overview, not upload
+  const [helpOpen,setHelpOpen]=useState(false);
+  const [helpDropdown,setHelpDropdown]=useState(false);
   const [columns,setColumns]=useState([]);
   const [fileName,setFileName]=useState("");
   const [mapping,setMapping]=useState({});
@@ -323,16 +325,42 @@ export default function NIGPAnalyzer() {
         </div>
       </div>
       {/* #2 — header buttons */}
-      <div style={{display:"flex",gap:8}}>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
         {stage==="analyze"&&<button onClick={()=>setStage("map")} style={{background:"transparent",border:"1px solid #1e3a4a",color:"#7aafc9",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12}}>✏ Edit Mapping</button>}
-        {/* Add New File — always visible once past overview */}
         {(stage==="map"||stage==="analyze")&&(
           <button onClick={()=>{setStage("overview");setData(null);setError("");setFileName("");}} style={{background:"transparent",border:"1px solid #1e3a4a",color:"#7aafc9",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12}}>+ Add New File</button>
         )}
-        {/* #2 — Run Analysis button next to Add New File on map screen */}
         {stage==="map"&&(
           <button onClick={runAnalysis} style={{background:"linear-gradient(135deg,#00C49F,#0088FE)",border:"none",color:"#fff",borderRadius:8,padding:"7px 18px",cursor:"pointer",fontSize:12,fontWeight:700}}>Run Analysis →</button>
         )}
+        {/* Help dropdown — always visible on every screen */}
+        <div style={{position:"relative"}}>
+          <button
+            onClick={()=>setHelpDropdown(d=>!d)}
+            style={{background:helpDropdown?"#0d3a6e":"transparent",border:"1px solid #1e4a7a",color:"#7aafc9",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:6,transition:"background 0.15s"}}
+          >
+            <span style={{fontSize:13}}>?</span> Help <span style={{fontSize:9,opacity:0.7}}>▼</span>
+          </button>
+          {helpDropdown&&(
+            <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,background:"#0d1e2e",border:"1px solid #1e3a4a",borderRadius:10,minWidth:210,boxShadow:"0 12px 32px rgba(0,0,0,0.6)",zIndex:1000,overflow:"hidden"}}>
+              <div style={{padding:"7px 12px",borderBottom:"1px solid #1a3040"}}>
+                <span style={{fontSize:10,color:"#3a6a86",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>Video Guides</span>
+              </div>
+              <button
+                onClick={()=>{setHelpOpen(true);setHelpDropdown(false);}}
+                style={{width:"100%",background:"none",border:"none",padding:"10px 14px",textAlign:"left",color:"#a8d4f0",fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:9}}
+                onMouseEnter={e=>e.currentTarget.style.background="#1a3040"}
+                onMouseLeave={e=>e.currentTarget.style.background="none"}
+              >
+                <span style={{fontSize:15}}>▶</span>
+                <div>
+                  <div style={{fontWeight:600,fontSize:12}}>NIGP Analyzer Demo</div>
+                  <div style={{fontSize:10,color:"#3a6a86",marginTop:1}}>1 min · Getting Started</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1152,6 +1180,59 @@ export default function NIGPAnalyzer() {
           )}
         </div>
       </div>
+
+      {/* ── Help dropdown backdrop (close on outside click) ── */}
+      {helpDropdown&&(
+        <div onClick={()=>setHelpDropdown(false)} style={{position:"fixed",inset:0,zIndex:999}}/>
+      )}
+
+      {/* ── Help Video Modal ── */}
+      {helpOpen&&(
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={()=>setHelpOpen(false)}
+            style={{position:"fixed",inset:0,background:"rgba(2,8,23,0.82)",backdropFilter:"blur(4px)",zIndex:2000,animation:"hModalFadeIn 0.2s ease"}}
+          />
+          {/* Modal */}
+          <div style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"min(680px,92vw)",background:"#0d1e2e",border:"1px solid #1e3a4a",borderRadius:14,overflow:"hidden",boxShadow:"0 32px 80px rgba(0,0,0,0.85)",zIndex:2001,animation:"hModalPopIn 0.25s cubic-bezier(0.34,1.56,0.64,1)"}}>
+            {/* Modal header */}
+            <div style={{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid #1a3040"}}>
+              <div>
+                <div style={{fontSize:15,fontWeight:700,color:"#e8f4ff"}}>NIGP Analyzer Demo</div>
+                <div style={{fontSize:11,color:"#3a6a86",marginTop:2}}>1 min · Getting Started</div>
+              </div>
+              <button
+                onClick={()=>setHelpOpen(false)}
+                style={{background:"#1a3040",border:"1px solid #1e3a4a",color:"#7aafc9",width:30,height:30,borderRadius:7,cursor:"pointer",fontSize:15,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}
+              >✕</button>
+            </div>
+            {/* YouTube embed */}
+            <div style={{background:"#000",aspectRatio:"16/9",width:"100%"}}>
+              <iframe
+                src="https://www.youtube.com/embed/U7FXpun6Kxk?autoplay=1&rel=0"
+                title="NIGP Analyzer Demo"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{width:"100%",height:"100%",border:"none",display:"block"}}
+              />
+            </div>
+            {/* Modal footer */}
+            <div style={{padding:"12px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span style={{fontSize:12,color:"#3a6a86"}}>Click outside or ✕ to close and return to the app</span>
+              <button
+                onClick={()=>setHelpOpen(false)}
+                style={{background:"linear-gradient(135deg,#00C49F,#0088FE)",color:"#fff",border:"none",borderRadius:7,padding:"7px 18px",fontSize:13,fontWeight:700,cursor:"pointer"}}
+              >Got it ✓</button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes hModalFadeIn { from{opacity:0} to{opacity:1} }
+            @keyframes hModalPopIn  { from{opacity:0;transform:translate(-50%,-50%) scale(0.93)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+          `}</style>
+        </>
+      )}
+
     </div>
   );
 }
