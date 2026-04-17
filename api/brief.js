@@ -18,9 +18,11 @@ export default async function handler(req) {
   const allowedOrigins = [
     "http://localhost:3000",
     "http://localhost:5173",
+    "https://nigp.roadmapventure.com",
+    "https://nigp-analyzer.vercel.app",
     process.env.ALLOWED_ORIGIN || "", // set this in Vercel env vars to your domain
   ];
-  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const corsOrigin = allowedOrigins.includes(origin) ? "*";
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": corsOrigin,
