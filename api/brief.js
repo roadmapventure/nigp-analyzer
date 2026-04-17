@@ -1,8 +1,7 @@
-module.exports = async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+// api/brief.js — Vercel Serverless Function
+// Proxies requests to Anthropic API, keeping your key server-side.
 
+module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -11,9 +10,20 @@ module.exports = async function handler(req, res) {
     return res.status(204).end();
   }
 
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "API key not configured on server." });
+  }
+
+  // Vercel automatically parses JSON bodies — req.body is ready to use
+  const body = req.body;
+
+  if (!body || !body.messages) {
+    return res.status(400).json({ error: "Invalid request body" });
   }
 
   try {
@@ -24,7 +34,12 @@ module.exports = async function handler(req, res) {
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({
+        model: body.model || "claude-haiku-4-5-20251001",
+        max_tokens: body.max_tokens || 3000,
+        system: body.system || "",
+        messages: body.messages,
+      }),
     });
 
     const data = await response.json();
