@@ -351,7 +351,7 @@ export default function NIGPAnalyzer() {
     <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}>
       <style>{BLINK_STYLE}</style>
       <Header/>
-      <div style={{maxWidth:820,margin:"36px auto",padding:"0 24px"}}>
+      <div style={{maxWidth:"100%",margin:"36px auto",padding:"0 24px"}}>
         <div style={{marginBottom:22}}>
           <div style={{fontSize:20,fontWeight:800,color:"#d0e8f5",marginBottom:5}}>Confirm Column Mapping</div>
           <div style={{fontSize:14,color:"#4a7a96"}}>Found <strong style={{color:"#8ab4cc"}}>{columns.length} columns</strong> in <strong style={{color:"#8ab4cc"}}>{fileName}</strong>.</div>
@@ -447,7 +447,7 @@ export default function NIGPAnalyzer() {
 
           {/* ── #1 — NO DATA: Overview with upload prompt ── */}
           {!data&&(
-            <div style={{maxWidth:680,margin:"0 auto"}}>
+            <div style={{maxWidth:780,margin:"0 auto",width:"100%"}}>
               {/* Animated headline */}
               <div style={{textAlign:"center",marginBottom:36}}>
                 <div style={{fontSize:12,fontWeight:700,color:"#00C49F",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:10}}>Government Procurement Intelligence</div>
@@ -1054,7 +1054,7 @@ export default function NIGPAnalyzer() {
 
               {/* AI Briefing */}
               {activeTab==="aibriefing"&&(
-                <div style={{maxWidth:820,margin:"0 auto"}}>
+                <div style={{maxWidth:"100%"}}>
                   <div style={{textAlign:"center",marginBottom:28}}>
                     <div style={{fontSize:20,fontWeight:800,marginBottom:6}}>
                       <span style={{background:"linear-gradient(135deg,#A45CFF,#FF6B9D)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>✨ AI CPO Executive Briefing</span>
