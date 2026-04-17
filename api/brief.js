@@ -2,7 +2,7 @@
 // Proxies requests to Anthropic API, keeping your key server-side.
 // Deploy: push to GitHub → connect to Vercel → add ANTHROPIC_API_KEY env var.
 
-export const config = { runtime: "edge" };
+export const config = { maxDuration: 60 };
 
 export default async function handler(req) {
   // Only allow POST
@@ -22,7 +22,7 @@ export default async function handler(req) {
     "https://nigp-analyzer.vercel.app",
     process.env.ALLOWED_ORIGIN || "", // set this in Vercel env vars to your domain
   ];
-  const corsOrigin = allowedOrigins.includes(origin) ? "*";
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : "*";
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": corsOrigin,
