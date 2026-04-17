@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/brief.cjs": {
+    "api/brief.js": {
       "maxDuration": 60
     }
   }
