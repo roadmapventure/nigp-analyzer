@@ -171,6 +171,8 @@ const BLINK_STYLE = `
   50% { border-color: #00C49F; box-shadow: 0 0 18px 4px rgba(0,196,159,0.25); }
 }
 .upload-blink { animation: borderPulse 2s ease-in-out infinite; }
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; width: 100%; min-height: 100vh; background: #080f18; }
 `;
 
 const NAV_GROUPS = [
@@ -395,7 +397,7 @@ export default function NIGPAnalyzer() {
   const localAreaName = localApplied ? localApplied.value : "Local Area";
 
   return (
-    <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea",display:"flex",flexDirection:"column"}}>
+    <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea",display:"flex",flexDirection:"column",width:"100%",margin:0,padding:0}}>
       <style>{BLINK_STYLE}</style>
       <Header/>
 
