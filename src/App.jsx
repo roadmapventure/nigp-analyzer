@@ -17,10 +17,6 @@ function resolveNIGP(rawCode) {
   return { classCode, label };
 }
 
-<<<<<<< HEAD
-// ── FIELD_DEFS: department synonyms restricted to actual department/agency/division names only (#4)
-=======
->>>>>>> c158944 (v2.2)
 const FIELD_DEFS = {
   amount:      { label:"💰 Spend Amount",      required:true,  color:"#00C49F", hint:"Dollar value per transaction",         synonyms:["itm_tot_am","amount","total","spend","cost","price","value","sum","extended","amt","dollar","extended_amount","total_amount","line_total","po_amount"] },
   nigp:        { label:"🏷 NIGP Code",          required:true,  color:"#0088FE", hint:"Commodity / class code",              synonyms:["commodity","nigp","class","code","item_class","commodity_code","nigp_code","item_no","class_code","nigp_class","nigp_commodity"] },
@@ -49,11 +45,6 @@ function autoDetect(columns) {
 }
 
 const PALETTE = ["#00C49F","#FFBB28","#FF8042","#0088FE","#A45CFF","#FF6B9D","#29B6F6","#FFA726","#66BB6A","#EF5350","#AB47BC","#26C6DA","#D4E157","#FF7043","#42A5F5","#EC407A","#7E57C2","#26A69A","#FFA000","#78909C","#4DD0E1","#AED581","#FFD54F","#F48FB1","#CE93D8"];
-<<<<<<< HEAD
-
-// #5 — fmtFull rounds to nearest dollar (no decimals)
-=======
->>>>>>> c158944 (v2.2)
 const fmt = n => n>=1e9?`$${(n/1e9).toFixed(1)}B`:n>=1e6?`$${(n/1e6).toFixed(1)}M`:n>=1e3?`$${(n/1e3).toFixed(0)}K`:`$${Math.round(n).toLocaleString()}`;
 const fmtFull = n => "$"+Math.round(Number(n)).toLocaleString("en-US");
 const parseAmt = raw => { if(!raw) return NaN; return parseFloat(String(raw).replace(/[$,\s]/g,"")); };
@@ -173,9 +164,6 @@ function computeVendorConc(rows, mapping, totalSpend) {
 
 const fileStore={current:null};
 
-<<<<<<< HEAD
-// ── SIDEBAR NAV CONFIG (#7) ──────────────────────────────────────────────────
-=======
 // #1 — blinking border CSS injected once
 const BLINK_STYLE = `
 @keyframes borderPulse {
@@ -185,7 +173,6 @@ const BLINK_STYLE = `
 .upload-blink { animation: borderPulse 2s ease-in-out infinite; }
 `;
 
->>>>>>> c158944 (v2.2)
 const NAV_GROUPS = [
   { id:"overview-group", label:"Overview", tabs:[{id:"overview",label:"Overview",icon:"▦"}] },
   { id:"analysis-group", label:"Analysis", tabs:[
@@ -206,8 +193,6 @@ const NAV_GROUPS = [
   ]},
 ];
 
-<<<<<<< HEAD
-=======
 // #6 — custom bar label showing % on top of timeline bars
 const TimelinePctLabel = ({x,y,width,value,total}) => {
   if(!total||!value||width<20) return null;
@@ -215,7 +200,6 @@ const TimelinePctLabel = ({x,y,width,value,total}) => {
   return <text x={x+width/2} y={y-4} textAnchor="middle" fill="#8ab4cc" fontSize={9} fontWeight={600}>{pct}%</text>;
 };
 
->>>>>>> c158944 (v2.2)
 export default function NIGPAnalyzer() {
   const [stage,setStage]=useState("overview"); // #1 — start on overview, not upload
   const [columns,setColumns]=useState([]);
@@ -237,11 +221,6 @@ export default function NIGPAnalyzer() {
   const [aiLoading,setAiLoading]=useState(false);
   const [aiResult,setAiResult]=useState(null);
   const [aiError,setAiError]=useState("");
-<<<<<<< HEAD
-
-  // #9 — HHI tooltip state
-=======
->>>>>>> c158944 (v2.2)
   const [hhiTooltipVisible,setHhiTooltipVisible]=useState(false);
 
   const generateBriefing = async () => {
@@ -252,23 +231,11 @@ export default function NIGPAnalyzer() {
     const flagSummary = data.flags.map(f=>`[${f.severity.toUpperCase()}] ${f.title}: ${f.summary}`);
     const hhi = data.vendorConc ? data.vendorConc.hhi.toFixed(0) : "N/A";
     const systemPrompt = `You are a senior government procurement analyst writing an executive briefing for a Chief Procurement Officer (CPO). Write in a direct, authoritative tone. Use precise numbers from the data. Structure your response in clean HTML using only: <h2>, <h3>, <p>, <strong>, <span style="...">, <div style="...">. Use colors: accent #00C49F, risk #EF5350, warning #FFA726, text #c8dcea. Do not use bullet points. Write in flowing paragraphs like a McKinsey memo.`;
-<<<<<<< HEAD
-    const userPrompt = `Write a CPO Executive Briefing for this procurement data.\n\nFile: ${fileName}\nTotal Spend: ${fmtFull(data.totalSpend)}\nTransactions: ${data.txCount.toLocaleString()}\nCategories: ${data.classArr.length}\nUnique Vendors: ${data.vendorArr.length}\nVendor HHI: ${hhi} (>2500=highly concentrated)\n\nTOP 5 CATEGORIES:\n${top5cats.join("\n")}\n\nTOP 5 VENDORS:\n${top5vend.join("\n")}\n\nPROCUREMENT FLAGS:\n${flagSummary.join("\n")}\n\nWrite exactly four sections:\n1. PORTFOLIO OVERVIEW — 2-3 sentences on spend scale and category mix\n2. RISK ASSESSMENT — narrative analysis of top flags with dollar exposure\n3. STRATEGIC OPPORTUNITIES — 3 concrete 90-day actions with estimated value\n4. BOTTOM LINE — one paragraph the CPO can read aloud to city council in 30 seconds\n\nFormat as clean HTML. Make it feel like a premium consulting deliverable.`;
-    try {
-      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      const endpoint = isLocalhost ? "https://api.anthropic.com/v1/messages" : "/api/brief";
-      const response = await fetch(endpoint, {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ model:"claude-haiku-4-5-20251001", max_tokens:6000, system:systemPrompt, messages:[{role:"user",content:userPrompt}] }),
-      });
-=======
     const userPrompt = `Write a CPO Executive Briefing for this procurement data.\n\nFile: ${fileName}\nTotal Spend: ${fmtFull(data.totalSpend)}\nTransactions: ${data.txCount.toLocaleString()}\nCategories: ${data.classArr.length}\nUnique Vendors: ${data.vendorArr.length}\nVendor HHI: ${hhi} (>2500=highly concentrated)\n\nTOP 5 CATEGORIES:\n${top5cats.join("\n")}\n\nTOP 5 VENDORS:\n${top5vend.join("\n")}\n\nPROCUREMENT FLAGS:\n${flagSummary.join("\n")}\n\nWrite exactly four sections:\n1. PORTFOLIO OVERVIEW\n2. RISK ASSESSMENT\n3. STRATEGIC OPPORTUNITIES\n4. BOTTOM LINE\n\nFormat as clean HTML. Make it feel like a premium consulting deliverable.`;
     try {
       const isLocalhost = window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1";
       const endpoint = isLocalhost?"https://api.anthropic.com/v1/messages":"/api/brief";
       const response = await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:6000,system:systemPrompt,messages:[{role:"user",content:userPrompt}]})});
->>>>>>> c158944 (v2.2)
       const result = await response.json();
       if(result.error) throw new Error(result.error.message||JSON.stringify(result.error));
       const raw = result.content?.map(b=>b.text||"").join("")||"";
@@ -368,10 +335,6 @@ export default function NIGPAnalyzer() {
     </div>
   );
 
-<<<<<<< HEAD
-  // ── LOADING ──────────────────────────────────────────────────────────────────
-=======
->>>>>>> c158944 (v2.2)
   if(loading) return (
     <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}>
       <style>{BLINK_STYLE}</style>
@@ -383,57 +346,7 @@ export default function NIGPAnalyzer() {
     </div>
   );
 
-<<<<<<< HEAD
-  // ── UPLOAD STAGE (#1 — animated welcome + upload button) ────────────────────
-  if(stage==="upload") return (
-    <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}>
-      <Header/>
-      <div style={{maxWidth:780,margin:"50px auto 0",padding:"0 24px"}}>
-
-        {/* Animated welcome / app description (#1 option 4) */}
-        <div style={{textAlign:"center",marginBottom:40}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#00C49F",letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:12}}>Government Procurement Intelligence</div>
-          <h1 style={{fontSize:32,fontWeight:900,color:"#e8f4ff",margin:"0 0 14px",letterSpacing:"-0.5px",lineHeight:1.2}}>
-            Turn raw spend data into<br/>
-            <span style={{background:"linear-gradient(135deg,#00C49F,#0088FE)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>boardroom-ready intelligence</span>
-          </h1>
-          <p style={{fontSize:15,color:"#5a8aaa",maxWidth:520,margin:"0 auto",lineHeight:1.7}}>
-            Upload your procurement CSV and get instant analysis — spend categories, vendor concentration, risk flags, and an AI-generated executive briefing in under 30 seconds.
-          </p>
-        </div>
-
-        {/* Preview cards (greyed-out placeholder, option 2) */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:36,opacity:0.35,pointerEvents:"none",userSelect:"none"}}>
-          {[{l:"Total Spend",v:"$000,000,000",c:"#00C49F"},{l:"Transactions",v:"00,000",c:"#0088FE"},{l:"Health Flags",v:"—",c:"#FFA726"},{l:"Vendor HHI",v:"—",c:"#A45CFF"}].map(p=>(
-            <div key={p.l} style={{background:"#0a1729",border:"1px solid #1a3040",borderRadius:12,padding:"14px 16px"}}>
-              <div style={{fontSize:10,color:"#4a7a96",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>{p.l}</div>
-              <div style={{fontSize:18,fontWeight:800,color:p.c,filter:"blur(5px)"}}>{p.v}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Drop zone */}
-        <div onClick={()=>inputRef.current.click()} onDrop={e=>{e.preventDefault();processFile(e.dataTransfer.files[0]);}} onDragOver={e=>{e.preventDefault();}} onDragLeave={()=>{}}
-          style={{border:`2px dashed ${dragOver?"#00C49F":"#1e3a4a"}`,borderRadius:16,padding:"50px 40px",textAlign:"center",cursor:"pointer",background:"#0a1729",transition:"all 0.2s"}}>
-          <div style={{fontSize:44,marginBottom:14}}>📊</div>
-          <div style={{fontSize:19,fontWeight:700,color:"#d0e8f5",marginBottom:8}}>Drop your government spend CSV here</div>
-          <div style={{fontSize:13,color:"#4a7a96",marginBottom:24}}>Procurement health analysis · Vendor risk scoring · AI Executive Briefing</div>
-          {/* #3 — "Upload Spend" button */}
-          <div style={{display:"inline-block",background:"linear-gradient(135deg,#00C49F,#0088FE)",color:"#fff",borderRadius:10,padding:"13px 32px",fontWeight:700,fontSize:15}}>↑ Upload Spend</div>
-          <input ref={inputRef} type="file" accept=".csv" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
-        </div>
-        <div style={{marginTop:20,background:"rgba(164,92,255,0.07)",border:"1px solid #A45CFF33",borderRadius:12,padding:"14px 18px",fontSize:13,color:"#8a6aaa",lineHeight:1.6}}>
-          ✨ <strong style={{color:"#C47CFF"}}>AI CPO Briefing</strong> — After uploading, navigate to AI Briefing under Strategy to generate a board-ready executive summary powered by Claude AI.
-        </div>
-        {error&&<div style={{marginTop:16,background:"rgba(239,83,80,0.1)",border:"1px solid #ef535044",borderRadius:10,padding:"12px 16px",color:"#ff8a80",fontSize:14}}>⚠ {error}</div>}
-      </div>
-    </div>
-  );
-
-  // ── MAPPING STAGE ────────────────────────────────────────────────────────────
-=======
   // ── MAPPING STAGE (#2) ──────────────────────────────────────────────────────
->>>>>>> c158944 (v2.2)
   if(stage==="map") return (
     <div style={{minHeight:"100vh",background:"#080f18",fontFamily:"'DM Sans','Segoe UI',sans-serif",color:"#c8dcea"}}>
       <style>{BLINK_STYLE}</style>
@@ -476,13 +389,8 @@ export default function NIGPAnalyzer() {
     </div>
   );
 
-<<<<<<< HEAD
-  // ── ANALYZE STAGE ────────────────────────────────────────────────────────────
-  const vc=data.vendorConc;
-=======
   // ── ANALYZE / OVERVIEW STAGE ─────────────────────────────────────────────────
   const vc = data?.vendorConc;
->>>>>>> c158944 (v2.2)
 
   const localAreaName = localApplied ? localApplied.value : "Local Area";
 
@@ -491,10 +399,6 @@ export default function NIGPAnalyzer() {
       <style>{BLINK_STYLE}</style>
       <Header/>
 
-<<<<<<< HEAD
-      {/* ── MAIN LAYOUT: sidebar + content ── */}
-=======
->>>>>>> c158944 (v2.2)
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
 
         {/* ── SIDEBAR (#3 — 70% = ~154px) ── */}
@@ -622,8 +526,6 @@ export default function NIGPAnalyzer() {
                         </div>
                       </div>
                     </div>
-<<<<<<< HEAD
-=======
                   )}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
                     <Card title="Top 15 Categories by Spend">
@@ -654,7 +556,6 @@ export default function NIGPAnalyzer() {
                         </ResponsiveContainer>
                       </div>
                     </Card>
->>>>>>> c158944 (v2.2)
                   </div>
                 </div>
               )}
@@ -1001,285 +902,7 @@ export default function NIGPAnalyzer() {
                 </Card>
               )}
 
-<<<<<<< HEAD
-          {activeTab==="flags"&&(
-            <div>
-              <div style={{marginBottom:20}}>
-                <div style={{fontSize:18,fontWeight:800,color:"#e8f4ff",marginBottom:6}}>Procurement Health Review</div>
-                <div style={{fontSize:13,color:"#5a8aaa"}}>{data.flags.length} concern{data.flags.length!==1?"s":""} detected · {data.flags.filter(f=>f.severity==="high").length} high · {data.flags.filter(f=>f.severity==="medium").length} medium · {data.flags.filter(f=>f.severity==="low").length} low · {data.flags.filter(f=>f.severity==="info").length} informational.</div>
-              </div>
-              {data.flags.length===0&&(<div style={{background:"rgba(0,196,159,0.07)",border:"1px solid #00C49F33",borderRadius:12,padding:"40px",textAlign:"center"}}><div style={{fontSize:36,marginBottom:12}}>✅</div><div style={{fontSize:16,fontWeight:700,color:"#00C49F"}}>No significant procurement concerns detected</div></div>)}
-              {["high","medium","low","info"].map(sev=>{ const grp=data.flags.filter(f=>f.severity===sev); if(!grp.length) return null; const labels={high:"🔴 High Priority",medium:"🟠 Medium Priority",low:"🟡 Low Priority",info:"🔵 Informational"}; return(<div key={sev} style={{marginBottom:24}}><div style={{fontSize:13,fontWeight:700,color:FLAG_COLORS[sev],marginBottom:10,textTransform:"uppercase",letterSpacing:"0.06em"}}>{labels[sev]}</div>{grp.map((f,i)=><FlagCard key={i} {...f} totalSpend={data.totalSpend}/>)}</div>); })}
-            </div>
-          )}
-
-          {activeTab==="concentration"&&vc&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-              <div style={{gridColumn:"1/-1",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-                {[
-                  // #9 — HHI card with tooltip
-                  {label:"HHI Score",value:vc.hhi.toFixed(0),sub:vc.hhi>2500?"Highly Concentrated":vc.hhi>1500?"Moderately Concentrated":"Competitive",accent:vc.hhi>2500?"#EF5350":vc.hhi>1500?"#FFA726":"#00C49F",hhi:true},
-                  {label:"Vendors for 50% of Spend",value:vc.v50,sub:"higher = more diverse",accent:"#0088FE"},
-                  {label:"Vendors for 75% of Spend",value:vc.v75,sub:"higher = more diverse",accent:"#FFBB28"},
-                  {label:"Vendors for 90% of Spend",value:vc.v90,sub:`of ${data.vendorArr.length} total`,accent:"#FF8042"},
-                ].map(s=>(
-                  <div key={s.label} style={{background:"#0a1729",borderRadius:12,padding:"14px 16px",border:"1px solid #1a3040",position:"relative"}}>
-                    <div style={{fontSize:11,color:"#4a7a96",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5,display:"flex",alignItems:"center",gap:6}}>
-                      {s.label}
-                      {s.hhi&&(
-                        <span style={{position:"relative",display:"inline-flex",alignItems:"center"}}
-                          onMouseEnter={()=>setHhiTooltipVisible(true)}
-                          onMouseLeave={()=>setHhiTooltipVisible(false)}>
-                          {/* #9 — info icon */}
-                          <span style={{width:14,height:14,borderRadius:"50%",background:"#1e3a4a",border:"1px solid #2a5a7a",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#5a9ab8",cursor:"help",fontWeight:700,flexShrink:0}}>i</span>
-                          {hhiTooltipVisible&&(
-                            <div style={{position:"absolute",left:"50%",bottom:"calc(100% + 8px)",transform:"translateX(-50%)",background:"#0d1e2e",border:"1px solid #2a4a5a",borderRadius:10,padding:"12px 14px",width:280,zIndex:100,pointerEvents:"none",boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
-                              <div style={{fontSize:12,fontWeight:700,color:"#29B6F6",marginBottom:6}}>Herfindahl-Hirschman Index (HHI)</div>
-                              <div style={{fontSize:11,color:"#8ab4cc",lineHeight:1.6}}>
-                                The HHI measures market concentration by summing the squares of each vendor's percentage share of total spend. A score below 1,500 indicates a competitive market; 1,500–2,500 signals moderate concentration; above 2,500 is considered highly concentrated and may warrant regulatory attention. In this app, HHI is calculated across all vendors using their percentage of total dollar spend, then summed to produce a single score from 0 to 10,000.
-                              </div>
-                              <div style={{position:"absolute",bottom:-6,left:"50%",transform:"translateX(-50%)",width:10,height:10,background:"#0d1e2e",borderRight:"1px solid #2a4a5a",borderBottom:"1px solid #2a4a5a",rotate:"45deg"}}/>
-                            </div>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{fontSize:24,fontWeight:800,color:s.accent,marginBottom:2}}>{s.value}</div>
-                    <div style={{fontSize:11,color:"#3a6a86"}}>{s.sub}</div>
-                  </div>
-                ))}
-              </div>
-              <Card title="Top 15 Vendors by Spend">
-                {/* #11 — dual X-axis top + bottom */}
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={top15V.map(v=>({...v,_pct:v.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:70,top:20,bottom:5}}>
-                    <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false} xAxisId="bottom" orientation="bottom"/>
-                    <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false} xAxisId="top" orientation="top"/>
-                    <YAxis type="category" dataKey="name" width={185} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                    <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                    <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>} xAxisId="bottom">
-                      {top15V.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Card>
-              {/* #10 — best practice dot on concentration curve */}
-              <Card title="Spend Concentration Curve">
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={vc.cumulativeCurve.slice(0,Math.min(50,vc.cumulativeCurve.length))} margin={{left:10,right:20,top:10,bottom:20}}>
-                    <XAxis dataKey="rank" label={{value:"Vendor Rank",position:"insideBottom",fill:"#4a7a96",fontSize:11,offset:-5}} tick={{fill:"#4a7a96",fontSize:10}}/>
-                    <YAxis domain={[0,100]} tickFormatter={v=>`${v}%`} tick={{fill:"#7aafc9",fontSize:11}} axisLine={false} tickLine={false}/>
-                    <Tooltip formatter={(v)=>[`${v.toFixed(1)}%`,"Cumulative Spend"]} labelFormatter={l=>`Vendor #${l}`}/>
-                    <ReferenceLine y={50} stroke="#00C49F44" strokeDasharray="4 4" label={{value:"50%",fill:"#00C49F",fontSize:11}}/>
-                    <ReferenceLine y={80} stroke="#FFA72644" strokeDasharray="4 4" label={{value:"80%",fill:"#FFA726",fontSize:11}}/>
-                    {/* #10 — best practice reference: healthy = top 10 vendors = 80% of spend */}
-                    <ReferenceLine x={10} stroke="#29B6F633" strokeDasharray="4 4" label={{value:"Best Practice",fill:"#29B6F6",fontSize:10,position:"insideTopRight"}}/>
-                    <Line type="monotone" dataKey="cumPct" stroke="#0088FE" strokeWidth={2} dot={false}/>
-                    {/* Best practice dot — rendered as a custom dot at x=10, y=80 */}
-                  </LineChart>
-                </ResponsiveContainer>
-                <div style={{fontSize:11,color:"#3a6a86",marginTop:8,lineHeight:1.5}}>
-                  <span style={{color:"#29B6F6",fontWeight:700}}>●</span> Best practice: Top 10 vendors account for ~80% of spend in a healthy procurement portfolio.
-                </div>
-              </Card>
-            </div>
-          )}
-
-          {activeTab==="categories"&&(
-            // #11 — dual X-axis top + bottom
-            <Card title="All Categories — Full Spend Breakdown" subtitle={`${data.classArr.length} categories matched`} span2>
-              <ResponsiveContainer width="100%" height={Math.max(500,data.classArr.length*26)}>
-                <BarChart data={data.classArr.map(x=>({...x,label:x.displayLabel,_pct:x.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:20,bottom:5}}>
-                  <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false} xAxisId="bottom" orientation="bottom"/>
-                  <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false} xAxisId="top" orientation="top"/>
-                  <YAxis type="category" dataKey="label" width={160} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                  <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>} xAxisId="bottom">
-                    {data.classArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-
-          {activeTab==="treemap"&&(
-            <Card title="Spend Treemap" subtitle="Area proportional to dollar volume · top 30 categories" span2>
-              {(()=>{ _treemapTotal = data.totalSpend; return null; })()}
-              <ResponsiveContainer width="100%" height={540}>
-                <Treemap data={treemapData} dataKey="size" aspectRatio={16/9} content={<TreeCell/>}>
-                  <Tooltip formatter={(v,n,p)=>[`${fmtFull(v)} · ${(v/data.totalSpend*100).toFixed(1)}%`,p.payload?.name||n]}/>
-                </Treemap>
-              </ResponsiveContainer>
-            </Card>
-          )}
-
-          {activeTab==="vendors"&&data.hasVendor&&(
-            // #11 — dual X-axis
-            <Card title="Top 15 Vendors by Spend" span2>
-              <ResponsiveContainer width="100%" height={440}>
-                <BarChart data={top15V.map(v=>({...v,_pct:v.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:20,bottom:5}}>
-                  <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false} xAxisId="bottom" orientation="bottom"/>
-                  <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false} xAxisId="top" orientation="top"/>
-                  <YAxis type="category" dataKey="name" width={200} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                  <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>} xAxisId="bottom">
-                    {top15V.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-
-          {activeTab==="departments"&&data.hasDept&&(
-            <Card title="Spend by Department" span2>
-              <ResponsiveContainer width="100%" height={Math.max(430,data.deptArr.length*28)}>
-                <BarChart data={data.deptArr.map(d=>({...d,_pct:d.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:5,bottom:5}}>
-                  <XAxis type="number" tickFormatter={fmt} tick={{fill:"#4a7a96",fontSize:11}} axisLine={false} tickLine={false}/>
-                  <YAxis type="category" dataKey="name" width={180} tick={{fill:"#8ab4cc",fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                  <Bar dataKey="total" radius={[0,5,5,0]} label={<PctBarLabel total={data.totalSpend} color="#5a8aaa"/>}>
-                    {data.deptArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-
-          {/* #12 — Timeline: brighter avg label and Y-axis */}
-          {activeTab==="timeline"&&data.hasDate&&(
-            <Card title="Monthly Spend" subtitle="Total procurement spend by month" span2>
-              <ResponsiveContainer width="100%" height={360}>
-                <BarChart data={data.monthArr} margin={{left:10,right:20,top:5,bottom:20}}>
-                  <XAxis dataKey="month" tick={{fill:"#8ab4cc",fontSize:11}} axisLine={false} tickLine={false}/>
-                  {/* #12 — brighter Y-axis tick color */}
-                  <YAxis tickFormatter={fmt} tick={{fill:"#8ab4cc",fontSize:11}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                  {/* #12 — more prominent avg label */}
-                  <ReferenceLine y={data.totalSpend/data.monthArr.length} stroke="#00C49F99" strokeDasharray="4 4"
-                    label={{value:`Avg ${fmt(data.totalSpend/data.monthArr.length)}`,position:"insideTopRight",fill:"#00C49F",fontSize:12,fontWeight:700}}/>
-                  <Bar dataKey="total" radius={[5,5,0,0]}>{data.monthArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}</Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          )}
-
-          {activeTab==="table"&&(
-            <Card title="Full Category Table" subtitle="All categories with spend breakdown" span2>
-              <input placeholder="Search category name or code…" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{width:"100%",boxSizing:"border-box",marginBottom:14,background:"#0d1e2e",border:"1px solid #1e3a4a",borderRadius:8,padding:"9px 14px",color:"#c8dcea",fontSize:13,outline:"none"}}/>
-              <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                  <thead><tr>{["#","Class","Description","Total Spend","% Spend","Txns","Avg/Txn"].map(h=><th key={h} style={{textAlign:"left",padding:"10px 12px",color:"#4a7a96",fontWeight:600,fontSize:11,textTransform:"uppercase",letterSpacing:"0.06em",borderBottom:"1px solid #1a3040",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {filtered.map(row=>{ const rank=data.classArr.indexOf(row)+1; const spendPct=row.total/data.totalSpend*100; return(
-                      <tr key={row.classCode+row.label} style={{borderBottom:"1px solid #101e2e"}} onMouseOver={e=>e.currentTarget.style.background="#0d1e2e"} onMouseOut={e=>e.currentTarget.style.background="transparent"}>
-                        <td style={{textAlign:"center",padding:"9px 12px",color:"#3a6a86"}}>{rank}</td>
-                        <td style={{textAlign:"center",padding:"9px 12px"}}><span style={{background:"#0d1e2e",borderRadius:5,padding:"2px 8px",fontSize:12,color:"#5a9aaa",border:"1px solid #1e3a4a",fontWeight:700}}>{row.classCode}</span></td>
-                        <td style={{padding:"9px 12px",color:"#c8dcea",fontWeight:500,maxWidth:300}}>{toTC(row.label)}</td>
-                        <td style={{padding:"9px 12px",color:"#00C49F",fontWeight:700,whiteSpace:"nowrap"}}>{fmtFull(row.total)}</td>
-                        <td style={{padding:"9px 12px",minWidth:130}}><PctBar pct={spendPct} color={PALETTE[rank%PALETTE.length]} width={70}/></td>
-                        <td style={{padding:"9px 12px",color:"#8ab4cc"}}>{row.count.toLocaleString()}</td>
-                        <td style={{padding:"9px 12px",color:"#8ab4cc",whiteSpace:"nowrap"}}>{fmtFull(row.total/row.count)}</td>
-                      </tr>
-                    ); })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
-
-          {activeTab==="cleanup"&&(
-            <div>
-              <div style={{marginBottom:20}}>
-                <div style={{fontSize:18,fontWeight:800,color:"#e8f4ff",marginBottom:6}}>Data Quality — Code Cleanup</div>
-                <div style={{fontSize:13,color:"#5a8aaa"}}>{data.dirtyRows.length.toLocaleString()} transactions could not be fully classified due to missing, malformed, or unrecognized codes.</div>
-              </div>
-              <div style={{background:"#0a1729",borderRadius:14,padding:"20px 22px",border:"1px solid #1a3040"}}>
-                <div style={{overflowX:"auto"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                    <thead><tr>{["Issue","Raw Code","Description","Vendor","Spend"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 12px",color:"#4a7a96",fontWeight:600,fontSize:11,textTransform:"uppercase",letterSpacing:"0.06em",borderBottom:"1px solid #1a3040"}}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {data.dirtyRows.slice(0,100).map((row,i)=>{ const ic={"Missing Code":"#EF5350","Code Too Short":"#FFA726","Unrecognized Class":"#FFBB28"}[row.issue]||"#8ab4cc"; return(
-                        <tr key={i} style={{borderBottom:"1px solid #101e2e"}} onMouseOver={e=>e.currentTarget.style.background="#0d1e2e"} onMouseOut={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{padding:"9px 12px"}}><span style={{background:`${ic}15`,borderRadius:5,padding:"2px 8px",fontSize:11,color:ic,border:`1px solid ${ic}44`}}>{row.issue}</span></td>
-                          <td style={{padding:"9px 12px"}}><span style={{background:"#0d1e2e",borderRadius:5,padding:"2px 7px",fontSize:11,color:"#FFBB28",border:"1px solid #FFBB2833",fontWeight:700}}>{row.rawCode}</span></td>
-                          <td style={{padding:"9px 12px",color:"#c8dcea",maxWidth:220,fontSize:12}}>{String(row.description||"—").slice(0,55)}</td>
-                          <td style={{padding:"9px 12px",color:"#8ab4cc",maxWidth:160,fontSize:12}}>{String(row.vendor||"—").slice(0,35)}</td>
-                          <td style={{padding:"9px 12px",color:"#00C49F",fontWeight:700,whiteSpace:"nowrap"}}>{fmtFull(row.amount)}</td>
-                        </tr>
-                      ); })}
-                    </tbody>
-                  </table>
-                  {data.dirtyRows.length>100&&<div style={{textAlign:"center",padding:"14px",fontSize:12,color:"#3a6a86"}}>Showing first 100 of {data.dirtyRows.length.toLocaleString()} rows</div>}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* #13 — Local Spend with dynamic city/state labels */}
-          {activeTab==="localspend"&&(()=>{
-            const cityC=mapping.vendor_city; const stateC=mapping.vendor_state;
-            const hasCity=!!cityC&&data.cityValues.length>0; const hasState=!!stateC&&data.stateValues.length>0;
-            const dropdownOptions=localViewBy==="city"?data.cityValues:data.stateValues;
-            const ls=localApplied?(()=>{
-              const {viewBy,value}=localApplied; const fieldCol=viewBy==="city"?cityC:stateC; if(!fieldCol) return null;
-              const localRows=[],nonLocalRows=[];
-              for(const r of data.rows){ const v=String(r[fieldCol]||"").trim(); const match=viewBy==="state"?v.toUpperCase()===value.toUpperCase():v.toLowerCase()===value.toLowerCase(); if(match) localRows.push(r); else nonLocalRows.push(r); }
-              const localTotal=localRows.reduce((s,r)=>s+r._amt,0); const localPct=data.totalSpend>0?localTotal/data.totalSpend*100:0;
-              const localVendors=new Set(localRows.map(r=>mapping.vendor?String(r[mapping.vendor]||"").trim():"").filter(Boolean));
-              return {localTotal,nonLocalTotal:data.totalSpend-localTotal,localPct,nonLocalPct:100-localPct,localVendors:localVendors.size,localTxns:localRows.length,nonLocalTxns:nonLocalRows.length,value};
-            })():null;
-            // #13 — dynamic label
-            const areaName = ls ? ls.value : "—";
-            return(
-              <div>
-                <div style={{background:"#0a1729",border:"1px solid #1a3040",borderRadius:14,padding:"20px 24px",marginBottom:20}}>
-                  <div style={{fontSize:15,fontWeight:700,color:"#d0e8f5",marginBottom:12}}>Local Spend Analysis</div>
-                  <div style={{display:"flex",gap:16,flexWrap:"wrap",alignItems:"flex-end"}}>
-                    <div style={{display:"flex",background:"#0d1e2e",borderRadius:9,border:"1px solid #1a3040",overflow:"hidden"}}>
-                      {[{val:"city",label:"🏙 City",avail:hasCity},{val:"state",label:"🗺 State",avail:hasState}].map(opt=>(
-                        <button key={opt.val} onClick={()=>{if(opt.avail){setLocalViewBy(opt.val);setLocalSelected("");}}} disabled={!opt.avail}
-                          style={{padding:"9px 22px",fontSize:13,fontWeight:700,cursor:opt.avail?"pointer":"not-allowed",border:"none",fontFamily:"inherit",opacity:opt.avail?1:0.35,background:localViewBy===opt.val&&opt.avail?"rgba(102,187,106,0.15)":"transparent",color:localViewBy===opt.val&&opt.avail?"#66BB6A":"#4a7a96"}}>{opt.label}</button>
-                      ))}
-                    </div>
-                    <select value={localSelected} onChange={e=>setLocalSelected(e.target.value)} disabled={dropdownOptions.length===0}
-                      style={{background:"#0d1e2e",border:"1px solid #2a4a5a",borderRadius:8,padding:"9px 14px",color:localSelected?"#d0e8f5":"#5a8aaa",fontSize:13,fontFamily:"inherit",cursor:"pointer",outline:"none",minWidth:200}}>
-                      <option value="">— Choose a {localViewBy==="city"?"city":"state"} —</option>
-                      {dropdownOptions.map(v=><option key={v} value={v}>{v}</option>)}
-                    </select>
-                    <button onClick={()=>{if(localSelected) setLocalApplied({viewBy:localViewBy,value:localSelected});}} disabled={!localSelected}
-                      style={{background:localSelected?"linear-gradient(135deg,#66BB6A,#29B6F6)":"#1a3040",border:"none",color:localSelected?"#fff":"#3a6a86",borderRadius:8,padding:"9px 22px",fontSize:13,fontWeight:700,cursor:localSelected?"pointer":"not-allowed",fontFamily:"inherit"}}>Apply →</button>
-                    {localApplied&&<button onClick={()=>{setLocalApplied(null);setLocalSelected("");}} style={{background:"transparent",border:"1px solid #1e3a4a",color:"#5a8aaa",borderRadius:8,padding:"9px 16px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>}
-                  </div>
-                </div>
-                {!localApplied&&<div style={{background:"rgba(102,187,106,0.05)",border:"1px solid #66BB6A22",borderRadius:14,padding:"60px 40px",textAlign:"center"}}><div style={{fontSize:40,marginBottom:14}}>📍</div><div style={{fontSize:17,fontWeight:700,color:"#d0e8f5",marginBottom:8}}>Select a local area to begin</div></div>}
-                {ls&&(
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
-                    {[
-                      // #13 — dynamic labels using areaName
-                      {label:`In ${areaName}`,val:fmtFull(ls.localTotal),pill:`${ls.localPct.toFixed(1)}%`,accent:"#66BB6A"},
-                      {label:`Out of ${areaName}`,val:fmtFull(ls.nonLocalTotal),pill:`${ls.nonLocalPct.toFixed(1)}%`,accent:"#EF5350"},
-                      {label:`Vendors in ${areaName}`,val:ls.localVendors,pill:`${ls.localTxns.toLocaleString()} txns`,accent:"#FFBB28"},
-                      {label:`TXNs out of ${areaName}`,val:ls.nonLocalTxns.toLocaleString(),pill:`${ls.nonLocalPct.toFixed(1)}% of txns`,accent:"#FFA726"},
-                    ].map(k=>(
-                      <div key={k.label} style={{background:"#0a1729",border:"1px solid #1a3040",borderRadius:14,padding:"18px 20px"}}>
-                        <div style={{fontSize:11,color:"#4a7a96",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8,fontWeight:600,lineHeight:1.3}}>{k.label}</div>
-                        <div style={{fontSize:22,fontWeight:800,color:k.accent,marginBottom:5}}>{k.val}</div>
-                        <div style={{fontSize:12,color:"#5a8aaa"}}>{k.pill}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* ── AI CPO BRIEFING (#14) ── */}
-          {activeTab==="aibriefing"&&(
-            <div>
-              <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
-=======
               {activeTab==="cleanup"&&(
->>>>>>> c158944 (v2.2)
                 <div>
                   <div style={{marginBottom:20}}>
                     <div style={{fontSize:18,fontWeight:800,color:"#e8f4ff",marginBottom:6}}>Data Quality — Code Cleanup</div>
@@ -1307,36 +930,6 @@ export default function NIGPAnalyzer() {
                 </div>
               )}
 
-<<<<<<< HEAD
-              {/* #14 — updated labels */}
-              {!aiResult&&!aiLoading&&!aiError&&(
-                <div style={{background:"#0a1729",border:"1px dashed #A45CFF33",borderRadius:16,padding:"60px 40px",textAlign:"center"}}>
-                  <div style={{fontSize:42,marginBottom:16}}>📋</div>
-                  <div style={{fontSize:17,fontWeight:700,color:"#d0e8f5",marginBottom:8}}>Ready to generate your CPO briefing</div>
-                  <div style={{fontSize:13,color:"#4a7a96",maxWidth:480,margin:"0 auto",lineHeight:1.6}}>
-                    Click <strong style={{color:"#C47CFF"}}>Generate Executive Briefing</strong> to have Claude AI analyze your {data.txCount.toLocaleString()} transactions and produce a board-ready executive summary.
-                  </div>
-                  <div style={{marginTop:20,display:"flex",flexWrap:"wrap",gap:10,justifyContent:"center",fontSize:12,color:"#3a6a86"}}>
-                    {/* #14a — ~30 seconds */}
-                    <span style={{background:"#0d1e2e",padding:"5px 12px",borderRadius:6,border:"1px solid #1a3040"}}>~30 seconds to generate</span>
-                    {/* #14b — ~$0.02 per briefing */}
-                    <span style={{background:"#0d1e2e",padding:"5px 12px",borderRadius:6,border:"1px solid #1a3040"}}>~$0.02 per briefing</span>
-                    {/* #14c — Board-ready PDF export */}
-                    <span style={{background:"#0d1e2e",padding:"5px 12px",borderRadius:6,border:"1px solid #1a3040"}}>Board-ready PDF export</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Footer row */}
-          <div style={{marginTop:14,fontSize:12,color:"#2a4a5a",textAlign:"center"}}>
-            {fileName} · {data.rowCount.toLocaleString()} rows · {data.txCount.toLocaleString()} valid transactions · {data.skipped} skipped
-          </div>
-
-        </div>{/* end content area */}
-      </div>{/* end main layout */}
-=======
               {/* #7 — Local Spend: restored 4 cards + pie chart + bar chart */}
               {activeTab==="localspend"&&(()=>{
                 const cityC=mapping.vendor_city; const stateC=mapping.vendor_state;
@@ -1506,7 +1099,6 @@ export default function NIGPAnalyzer() {
           )}
         </div>
       </div>
->>>>>>> c158944 (v2.2)
     </div>
   );
 }
