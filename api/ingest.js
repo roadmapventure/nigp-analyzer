@@ -22,8 +22,15 @@ export default async function handler(req, res) {
     }
 
     // ── Step 1: Generate embedding via OpenAI ──────────────────────────────
-    // We embed the title + content together so retrieval matches on both
-    const textToEmbed = `${title}\n\n${content}`;
+    // text-embedding-3-small has an 8,192 token limit (~6,000 words).
+    // We truncate to ~5,500 words to stay safely under the limit.
+    // The full content is still stored in Supabase — only the embedding
+    // input is truncated, not the stored text.
+    const MAX_EMBED_CHARS = 22000; // ~5,500 words at avg 4 chars/word
+    const truncatedContent = content.length > MAX_EMBED_CHARS
+      ? content.slice(0, MAX_EMBED_CHARS) + " [truncated for embedding]"
+      : content;
+    const textToEmbed = `${title}\n\n${truncatedContent}`;
 
     const embeddingRes = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
