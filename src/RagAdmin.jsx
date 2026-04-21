@@ -67,21 +67,21 @@ async function extractTextFromFile(file) {
         if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
           // Extract readable strings from PDF binary
           const bytes = new Uint8Array(e.target.result);
-          let text = "";
+          let raw = "";
           for (let i = 0; i < bytes.length; i++) {
             const c = bytes[i];
-            if (c >= 32 && c <= 126) text += String.fromCharCode(c);
-            else if (c === 10 || c === 13) text += " ";
+            if (c >= 32 && c <= 126) raw += String.fromCharCode(c);
+            else if (c === 10 || c === 13) raw += " ";
           }
-          // Clean up: remove runs of special chars, keep readable words
-          const cleaned = text
-            .replace(/[^\x20-\x7E\n]/g, " ")
-            .replace(/\s{3,}/g, "  ")
-            .replace(/[^\w\s.,;:§\-()%$#@!?'"\/]/g, " ")
-            .replace(/\s{2,}/g, " ")
-            .trim();
-          const words = cleaned.split(/\s+/).filter(w => w.length > 2);
-          resolve({ text: words.join(" "), wordCount: words.length });
+          // Aggressively filter: keep only tokens with real alphabetic content.
+          // This removes PDF encoding artifacts, binary noise, and control sequences.
+          const words = raw
+            .replace(/[^a-zA-Z0-9\s.,;:\-()%$#@!?'"]/g, " ")
+            .replace(/\s+/g, " ")
+            .split(" ")
+            .filter(w => w.length >= 3 && /[a-zA-Z]{2,}/.test(w));
+          const cleaned = words.join(" ").trim();
+          resolve({ text: cleaned, wordCount: words.length });
         } else {
           // TXT or DOCX plain text
           const text = e.target.result;
@@ -494,7 +494,7 @@ export default function RagAdmin() {
   ];
 
   return (
-    <div style={{ background:"#0a0f1a", minHeight:"100vh", display:"flex", flexDirection:"column", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#e8f0fe", overflow:"hidden", height:"100vh" }}>
+    <div style={{ background:"#0a0f1a", minHeight:"100vh", display:"flex", flexDirection:"column", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#e8f0fe" }}>
 
       {/* Grid texture */}
       <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, backgroundImage:"linear-gradient(rgba(45,140,240,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(45,140,240,0.025) 1px,transparent 1px)", backgroundSize:"32px 32px" }} />
@@ -515,7 +515,7 @@ export default function RagAdmin() {
       </header>
 
       {/* ── BODY ── */}
-      <div style={{ display:"flex", flex:1, position:"relative", zIndex:1, overflow:"hidden", minHeight:0 }}>
+      <div style={{ display:"flex", flex:1, position:"relative", zIndex:1, overflow:"auto", minHeight:0 }}>
 
         {/* ── SIDEBAR ── */}
         <nav style={{ width:195, background:"#0d1424", borderRight:"1px solid #1e3050", padding:"16px 0", flexShrink:0, overflowY:"auto" }}>
@@ -540,7 +540,7 @@ export default function RagAdmin() {
         </nav>
 
         {/* ── CONTENT AREA ── */}
-        <div style={{ flex:1, display:"flex", overflow:"hidden", minWidth:0 }}>
+        <div style={{ flex:1, display:"flex", overflow:"auto", minWidth:0 }}>
           <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
 
             {/* ── NEW ENTRY SCREEN ── */}
@@ -720,6 +720,7 @@ export default function RagAdmin() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body, #root { height: 100%; }
         input::placeholder, textarea::placeholder { color: #2a3a52; }
         select option { background: #111827; color: #e8f0fe; }
         tbody tr:hover { background: rgba(45,140,240,0.04) !important; }
