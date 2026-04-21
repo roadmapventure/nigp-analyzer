@@ -26,11 +26,16 @@ export default async function handler(req, res) {
     // We truncate to ~5,500 words to stay safely under the limit.
     // The full content is still stored in Supabase — only the embedding
     // input is truncated, not the stored text.
-    const MAX_EMBED_CHARS = 22000; // ~5,500 words at avg 4 chars/word
+    const MAX_EMBED_CHARS = 12000; // ~3,000 words — safe limit for noisy PDF-extracted text
     const truncatedContent = content.length > MAX_EMBED_CHARS
       ? content.slice(0, MAX_EMBED_CHARS) + " [truncated for embedding]"
       : content;
-    const textToEmbed = `${title}\n\n${truncatedContent}`;
+    // Strip non-printable characters that inflate token count in PDF extractions
+    const cleanedContent = truncatedContent
+      .replace(/[^\x20-\x7E\n\r]/g, " ")
+      .replace(/\s{3,}/g, "  ")
+      .trim();
+    const textToEmbed = `${title}\n\n${cleanedContent}`;
 
     const embeddingRes = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
