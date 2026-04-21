@@ -1,40 +1,70 @@
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const openaiKey  = process.env.OPENAI_API_KEY;
+  const openaiKey   = process.env.OPENAI_API_KEY;
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-  if (!openaiKey)   return res.status(500).json({ error: "OPENAI_API_KEY not configured" });
   if (!supabaseUrl) return res.status(500).json({ error: "SUPABASE_URL not configured" });
   if (!supabaseKey) return res.status(500).json({ error: "SUPABASE_SERVICE_KEY not configured" });
 
+  // ── DELETE: remove entry from knowledge base ────────────────────────────────
+  if (req.method === "DELETE") {
+    try {
+      const { id, tenant_id } = req.body;
+      if (!id) return res.status(400).json({ error: "id is required" });
+
+      const deleteRes = await fetch(
+        `${supabaseUrl}/rest/v1/knowledge_entries?id=eq.${id}&tenant_id=eq.${tenant_id || "global"}`,
+        {
+          method: "DELETE",
+          headers: {
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${supabaseKey}`,
+            "Prefer": "return=minimal",
+          },
+        }
+      );
+
+      if (!deleteRes.ok) {
+        const err = await deleteRes.text();
+        return res.status(500).json({ error: "Supabase delete failed: " + err.slice(0, 200) });
+      }
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // ── POST: ingest new entry or update existing ───────────────────────────────
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (!openaiKey) return res.status(500).json({ error: "OPENAI_API_KEY not configured" });
+
   try {
-    const { id, title, category, jurisdiction, priority, triggers, content, status } = req.body;
+    const { id, title, category, jurisdiction, priority, triggers, content, status, tenant_id } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: "title and content are required" });
     }
 
-    // ── Step 1: Generate embedding via OpenAI ──────────────────────────────
-    // text-embedding-3-small has an 8,192 token limit (~6,000 words).
-    // We truncate to ~5,500 words to stay safely under the limit.
-    // The full content is still stored in Supabase — only the embedding
-    // input is truncated, not the stored text.
-    const MAX_EMBED_CHARS = 12000; // ~3,000 words — safe limit for noisy PDF-extracted text
+    // ── Step 1: Generate embedding via OpenAI ─────────────────────────────────
+    // text-embedding-3-small has an 8,192 token limit.
+    // Truncate to 12,000 chars (~3,000 words) — safe for noisy PDF-extracted text.
+    // Full content is still stored in Supabase — only embedding input is truncated.
+    const MAX_EMBED_CHARS = 12000;
     const truncatedContent = content.length > MAX_EMBED_CHARS
       ? content.slice(0, MAX_EMBED_CHARS) + " [truncated for embedding]"
       : content;
-    // Strip non-printable characters that inflate token count in PDF extractions
+
     const cleanedContent = truncatedContent
       .replace(/[^\x20-\x7E\n\r]/g, " ")
       .replace(/\s{3,}/g, "  ")
       .trim();
+
     const textToEmbed = `${title}\n\n${cleanedContent}`;
 
     const embeddingRes = await fetch("https://api.openai.com/v1/embeddings", {
@@ -43,10 +73,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${openaiKey}`,
       },
-      body: JSON.stringify({
-        model: "text-embedding-3-small",
-        input: textToEmbed,
-      }),
+      body: JSON.stringify({ model: "text-embedding-3-small", input: textToEmbed }),
     });
 
     if (!embeddingRes.ok) {
@@ -56,13 +83,11 @@ export default async function handler(req, res) {
 
     const embeddingData = await embeddingRes.json();
     const embedding = embeddingData.data?.[0]?.embedding;
+    if (!embedding) return res.status(500).json({ error: "No embedding returned from OpenAI" });
 
-    if (!embedding) {
-      return res.status(500).json({ error: "No embedding returned from OpenAI" });
-    }
-
-    // ── Step 2: Upsert into Supabase ───────────────────────────────────────
-    // If id is provided and exists, update. Otherwise insert new row.
+    // ── Step 2: Upsert into Supabase ──────────────────────────────────────────
+    // tenant_id defaults to "global" — shared across all users.
+    // Future: pass a specific tenant_id to isolate entries per client/org.
     const payload = {
       title,
       category:     category     || "Compliance",
@@ -72,9 +97,9 @@ export default async function handler(req, res) {
       content,
       embedding,
       status:       status       || "active",
+      tenant_id:    tenant_id    || "global",
     };
 
-    // Include id only if provided (for updates)
     if (id) payload.id = id;
 
     const upsertRes = await fetch(

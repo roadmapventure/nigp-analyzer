@@ -15,7 +15,13 @@ export default async function handler(req, res) {
   if (!supabaseKey) return res.status(500).json({ error: "SUPABASE_SERVICE_KEY not configured" });
 
   try {
-    const { queryText, jurisdiction, triggers, matchCount = 5 } = req.body;
+    const {
+      queryText,
+      jurisdiction,
+      triggers,
+      matchCount = 5,
+      tenant_id,    // ── multi-tenancy: retrieve entries for this tenant + global shared entries
+    } = req.body;
 
     if (!queryText) {
       return res.status(400).json({ error: "queryText is required" });
@@ -47,6 +53,13 @@ export default async function handler(req, res) {
     }
 
     // ── Step 2: Call Supabase match_knowledge RPC ─────────────────────────
+    // The RPC now accepts tenant_id and returns entries matching:
+    //   - tenant_id = "global" (shared across all users), OR
+    //   - tenant_id = the caller's specific tenant
+    // This means every user always sees global entries + their own private entries.
+    // When tenant_id is omitted or "global", only global entries are returned.
+    const effectiveTenant = tenant_id || "global";
+
     const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/match_knowledge`, {
       method: "POST",
       headers: {
@@ -57,7 +70,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         query_embedding: queryEmbedding,
         match_threshold: 0.3,
-        match_count: matchCount,
+        match_count:     matchCount,
+        p_tenant_id:     effectiveTenant,
       }),
     });
 
@@ -69,12 +83,11 @@ export default async function handler(req, res) {
     const matches = await rpcRes.json();
 
     // ── Step 3: Format matches into injected context text ─────────────────
-    // This is what gets prepended to the Claude system prompt
     if (!matches || matches.length === 0) {
-      return res.status(200).json({ context: "", matchCount: 0 });
+      return res.status(200).json({ context: "", matchCount: 0, entries: [] });
     }
 
-    // Filter: prefer entries matching the agency's jurisdiction (or "All")
+    // Prefer entries matching the agency's jurisdiction (or "All")
     const jurisdictionFiltered = matches.filter(m =>
       !jurisdiction ||
       m.jurisdiction === "All" ||
@@ -88,7 +101,6 @@ export default async function handler(req, res) {
       const jurisdictionTag = m.jurisdiction !== "All"
         ? `[JURISDICTION: ${m.jurisdiction}] `
         : "";
-      const priorityMap = { high: m.priority >= 80, medium: m.priority >= 50 };
       const priorityTag = m.priority >= 80
         ? "[CRITICAL PRIORITY] "
         : m.priority >= 65
@@ -105,7 +117,12 @@ export default async function handler(req, res) {
     return res.status(200).json({
       context,
       matchCount: finalMatches.length,
-      entries: finalMatches.map(m => ({ id: m.id, title: m.title, similarity: m.similarity })),
+      entries: finalMatches.map(m => ({
+        id:         m.id,
+        title:      m.title,
+        similarity: m.similarity,
+        tenant_id:  m.tenant_id,
+      })),
     });
 
   } catch (err) {
