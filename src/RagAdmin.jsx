@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 
 // ─── TENANT CONFIG ────────────────────────────────────────────────────────────
 // "global" = shared across all users.
@@ -94,25 +94,44 @@ function TriggerTags({ triggers, compact }) {
   return <span style={{ display:"flex", gap:4, flexWrap:"wrap" }}>{show.map(t=>{ const f=FLAG_TRIGGERS.find(f=>f.id===t); return f?<Tag key={t} color="#8aadca">{compact?f.label.split(" ")[0]:f.label}</Tag>:null; })}{compact&&triggers.length>2&&<Tag color="#5a7a9a">+{triggers.length-2}</Tag>}</span>;
 }
 
-// ─── PDF EXTRACTOR ────────────────────────────────────────────────────────────
+// ─── PDF EXTRACTOR — server-side via api/extract ─────────────────────────────
+// Browser-side binary PDF parsing produces encoding noise (FlateDecode, endobj etc).
+// We send the file as base64 to the edge function which uses pdf-parse for clean text.
 async function extractTextFromFile(file) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        if (file.type==="application/pdf"||file.name.endsWith(".pdf")) {
-          const bytes = new Uint8Array(e.target.result);
-          let raw="";
-          for(let i=0;i<bytes.length;i++){const c=bytes[i];if(c>=32&&c<=126)raw+=String.fromCharCode(c);else if(c===10||c===13)raw+=" ";}
-          const words=raw.replace(/[^a-zA-Z0-9\s.,;:\-()%$#@!?'"]/g," ").replace(/\s+/g," ").split(" ").filter(w=>w.length>=3&&/[a-zA-Z]{2,}/.test(w));
-          resolve({text:words.join(" ").trim(),wordCount:words.length});
-        } else {
-          const text=e.target.result;
-          resolve({text,wordCount:text.split(/\s+/).filter(w=>w.length>0).length});
+        // Convert ArrayBuffer → base64 string to send to the API
+        const bytes = new Uint8Array(e.target.result);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const base64 = btoa(binary);
+
+        const res = await fetch("/api/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileData: base64,
+            fileType: file.type,
+            fileName: file.name,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          resolve({ text: "", wordCount: 0, error: data.error || "Extraction failed" });
+          return;
         }
-      } catch { resolve({text:"",wordCount:0}); }
+
+        resolve({ text: data.text, wordCount: data.wordCount, preview: data.preview });
+      } catch (err) {
+        resolve({ text: "", wordCount: 0, error: err.message });
+      }
     };
-    file.type==="application/pdf"||file.name.endsWith(".pdf")?reader.readAsArrayBuffer(file):reader.readAsText(file);
+    reader.onerror = () => resolve({ text: "", wordCount: 0, error: "File read failed" });
+    reader.readAsArrayBuffer(file);
   });
 }
 
@@ -195,12 +214,19 @@ function NewEntryScreen({ onBack, onSaved, showToast, existingEntry }) {
     setUploadState("uploading");setUploadProgress(0);setUploadedFile(file);
     let prog=0;
     const ticker=setInterval(()=>{prog+=Math.random()*18+8;if(prog>=90){clearInterval(ticker);prog=90;}setUploadProgress(Math.min(90,prog));},180);
-    const{text,wordCount:wc}=await extractTextFromFile(file);
-    clearInterval(ticker);setUploadProgress(100);setExtractedText(text);setWordCount(wc);
+    const result=await extractTextFromFile(file);
+    clearInterval(ticker);setUploadProgress(100);
+    // Handle extraction errors from server
+    if(result.error || !result.text) {
+      setUploadState("idle");
+      showToast(result.error||"Could not extract text from this file","⚠");
+      return;
+    }
+    setExtractedText(result.text);setWordCount(result.wordCount);
     await new Promise(r=>setTimeout(r,400));
     setUploadState("ready");
     showToast("✨ Claude is analyzing your document…","✨");
-    const meta=await generateMetadata(file.name,text);
+    const meta=await generateMetadata(file.name,result.text);
     if(meta){
       setForm(f=>({...f,title:meta.title||f.title,category:meta.category||f.category,jurisdiction:meta.jurisdiction||f.jurisdiction,priority:meta.priority??f.priority,triggers:Array.isArray(meta.triggers)?meta.triggers:f.triggers}));
       showToast("Metadata generated — review before saving");
@@ -334,8 +360,8 @@ function NewEntryScreen({ onBack, onSaved, showToast, existingEntry }) {
             </button>
             {extractedOpen&&(
               <div style={{background:"#0a0f1a",border:"1px solid #1e3050",borderTop:"none",borderRadius:"0 0 8px 8px",padding:"14px 16px",fontSize:11,color:"#5a7a9a",fontFamily:"monospace",lineHeight:1.8,maxHeight:180,overflowY:"auto",whiteSpace:"pre-wrap",userSelect:"none"}}>
-                {extractedText.split(/\s+/).filter(w=>/[a-zA-Z]{2,}/.test(w)).slice(0,300).join(" ")}
-                {extractedText.length>0?"\n\n[Read-only · Full text stored in Supabase]":""}
+                {extractedText.split(/\s+/).slice(0,300).join(" ")}
+                {extractedText.length>0?"\n\n[Read-only · Clean text stored in Supabase · Extracted server-side]":""}
               </div>
             )}
           </div>
@@ -714,6 +740,7 @@ function SectionBlock({ label, sub, accent, children }) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function RagAdmin() {
   const [entries,setEntries]           = useState(SEED_ENTRIES);
+  const [entriesLoading,setEntriesLoading] = useState(true);
   const [activeNav,setActiveNav]       = useState("knowledge");
   const [activeFilter,setActiveFilter] = useState("all");
   const [search,setSearch]             = useState("");
@@ -723,6 +750,33 @@ export default function RagAdmin() {
   const [systemPrompt,setSystemPrompt] = useState(`You are an AI procurement analyst powered by NIGP's proprietary knowledge base. When analyzing spend data, ground your recommendations in NIGP methodology, Uniform Guidance compliance requirements, and NASPO cooperative contract benchmarks. Always cite the specific framework or regulation when flagging procurement concerns. Tailor recommendations to the agency's jurisdiction where applicable.`);
 
   const showToast=useCallback((msg,icon="✓")=>{setToast({msg,icon});setTimeout(()=>setToast(null),3000);},[]);
+
+  // ── Load real entries from Supabase on mount ────────────────────────────────
+  useEffect(()=>{
+    async function loadEntries() {
+      try {
+        const res = await fetch(`/api/load-entries?tenant_id=${TENANT_ID}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.entries && data.entries.length > 0) {
+            // Real entries exist — show them alongside demo entries
+            // Demo entries are kept for reference but shown clearly as DEMO
+            setEntries(prev => {
+              const realIds = new Set(data.entries.map(e => e.id));
+              const demos = prev.filter(e => e.isDemo);
+              return [...data.entries, ...demos];
+            });
+          }
+        }
+      } catch(err) {
+        // Silently fall back to seed data if load fails
+        console.warn("Could not load entries from Supabase:", err.message);
+      } finally {
+        setEntriesLoading(false);
+      }
+    }
+    loadEntries();
+  },[]);
 
   const stats={
     total:    entries.length,
@@ -846,7 +900,11 @@ export default function RagAdmin() {
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
                   <div>
                     <h2 style={{fontSize:21,fontWeight:800,color:"#e8f0fe",marginBottom:3,margin:0}}>📚 Knowledge Library</h2>
-                    <p style={{fontSize:12,color:"#5a7a9a",marginTop:4}}>Procurement expertise documents Claude reads before generating briefings</p>
+                    <p style={{fontSize:12,color:"#5a7a9a",marginTop:4}}>
+                      {entriesLoading
+                        ? "⏳ Loading entries from knowledge base…"
+                        : "Procurement expertise documents Claude reads before generating briefings"}
+                    </p>
                   </div>
                   <button onClick={()=>{setEditingEntry(null);setShowNewEntry(true);}} style={{background:"linear-gradient(135deg,#2d8cf0,#00d2b4)",border:"none",borderRadius:7,padding:"9px 18px",fontSize:13,fontWeight:700,color:"#0a0f1a",cursor:"pointer",flexShrink:0}}>+ Add Entry</button>
                 </div>
