@@ -14,11 +14,15 @@ export default async function handler(req, res) {
 
   try {
     const tenant_id = req.query.tenant_id || "global";
+    const agent_id  = req.query.agent_id  || null;
 
-    // Fetch all entries for this tenant
-    // Select all columns except embedding (large vector — not needed for UI display)
+    // Build agent filter — if agent_id provided, fetch that agent's entries + legacy entries
+    const agentFilter = agent_id
+      ? `&or=(agent_id.eq.${encodeURIComponent(agent_id)},agent_id.eq.legacy)`
+      : "";
+
     const fetchRes = await fetch(
-      `${supabaseUrl}/rest/v1/knowledge_entries?tenant_id=eq.${encodeURIComponent(tenant_id)}&select=id,title,category,jurisdiction,priority,triggers,status,tenant_id,created_at&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/knowledge_entries?tenant_id=eq.${encodeURIComponent(tenant_id)}${agentFilter}&select=id,title,category,jurisdiction,priority,triggers,status,tenant_id,agent_id,teaching_note,created_at&order=created_at.desc`,
       {
         method: "GET",
         headers: {
@@ -36,18 +40,19 @@ export default async function handler(req, res) {
 
     const entries = await fetchRes.json();
 
-    // Format for the frontend — convert created_at to a readable source string
     const formatted = (entries || []).map(e => ({
-      id:           e.id,
-      title:        e.title,
-      category:     e.category,
-      jurisdiction: e.jurisdiction,
-      priority:     e.priority,
-      triggers:     e.triggers || [],
-      status:       e.status,
-      tenant_id:    e.tenant_id,
-      isDemo:       false,
-      source:       e.created_at
+      id:            e.id,
+      title:         e.title,
+      category:      e.category,
+      jurisdiction:  e.jurisdiction,
+      priority:      e.priority,
+      triggers:      e.triggers || [],
+      status:        e.status,
+      tenant_id:     e.tenant_id,
+      agent_id:      e.agent_id || "legacy",
+      teaching_note: e.teaching_note || "",
+      isDemo:        false,
+      source:        e.created_at
         ? `Added ${new Date(e.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" })}`
         : "Knowledge base",
     }));

@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   if (!supabaseUrl) return res.status(500).json({ error: "SUPABASE_URL not configured" });
   if (!supabaseKey) return res.status(500).json({ error: "SUPABASE_SERVICE_KEY not configured" });
 
-  // ── DELETE: remove entry from knowledge base ────────────────────────────────
+  // ── DELETE ──────────────────────────────────────────────────────────────────
   if (req.method === "DELETE") {
     try {
       const { id, tenant_id } = req.body;
@@ -40,21 +40,22 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── POST: ingest new entry or update existing ───────────────────────────────
+  // ── POST ────────────────────────────────────────────────────────────────────
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!openaiKey) return res.status(500).json({ error: "OPENAI_API_KEY not configured" });
 
   try {
-    const { id, title, category, jurisdiction, priority, triggers, content, status, tenant_id } = req.body;
+    const {
+      id, title, category, jurisdiction, priority,
+      triggers, content, status, tenant_id,
+      agent_id,       // v3: which agent this document belongs to
+      teaching_note,  // v3: admin instruction to agent on how to use this doc
+    } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: "title and content are required" });
     }
 
-    // ── Step 1: Generate embedding via OpenAI ─────────────────────────────────
-    // text-embedding-3-small has an 8,192 token limit.
-    // Truncate to 12,000 chars (~3,000 words) — safe for noisy PDF-extracted text.
-    // Full content is still stored in Supabase — only embedding input is truncated.
     const MAX_EMBED_CHARS = 12000;
     const truncatedContent = content.length > MAX_EMBED_CHARS
       ? content.slice(0, MAX_EMBED_CHARS) + " [truncated for embedding]"
@@ -85,19 +86,18 @@ export default async function handler(req, res) {
     const embedding = embeddingData.data?.[0]?.embedding;
     if (!embedding) return res.status(500).json({ error: "No embedding returned from OpenAI" });
 
-    // ── Step 2: Upsert into Supabase ──────────────────────────────────────────
-    // tenant_id defaults to "global" — shared across all users.
-    // Future: pass a specific tenant_id to isolate entries per client/org.
     const payload = {
       title,
-      category:     category     || "Compliance",
-      jurisdiction: jurisdiction || "All",
-      priority:     priority     || 50,
-      triggers:     triggers     || [],
+      category:      category      || "Compliance",
+      jurisdiction:  jurisdiction  || "All",
+      priority:      priority      || 50,
+      triggers:      triggers      || [],
       content,
       embedding,
-      status:       status       || "active",
-      tenant_id:    tenant_id    || "global",
+      status:        status        || "active",
+      tenant_id:     tenant_id     || "global",
+      agent_id:      agent_id      || "legacy",   // "legacy" = v1/v2 entries
+      teaching_note: teaching_note || null,
     };
 
     if (id) payload.id = id;
