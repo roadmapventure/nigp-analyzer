@@ -10,7 +10,7 @@ createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />} />
-        <Route path="/admin" element={<RagAdmin />} />
+        <Route path="/admin" element={<TeamBuilder />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
