@@ -20,14 +20,15 @@ export default async function handler(req, res) {
       jurisdiction,
       triggers,
       matchCount = 5,
-      tenant_id,    // ── multi-tenancy: retrieve entries for this tenant + global shared entries
+      tenant_id,
+      agent_id,   // v3: filter RAG results to a specific agent's knowledge base
     } = req.body;
 
     if (!queryText) {
       return res.status(400).json({ error: "queryText is required" });
     }
 
-    // ── Step 1: Embed the incoming query ──────────────────────────────────
+    // Embed the query
     const embeddingRes = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
@@ -52,14 +53,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "No embedding returned from OpenAI" });
     }
 
-    // ── Step 2: Call Supabase match_knowledge RPC ─────────────────────────
-    // The RPC now accepts tenant_id and returns entries matching:
-    //   - tenant_id = "global" (shared across all users), OR
-    //   - tenant_id = the caller's specific tenant
-    // This means every user always sees global entries + their own private entries.
-    // When tenant_id is omitted or "global", only global entries are returned.
     const effectiveTenant = tenant_id || "global";
 
+    // Call Supabase match_knowledge RPC
+    // p_agent_id = null means no filter (returns all agents' entries)
+    // p_agent_id = "robyn" means only Robyn's entries + legacy entries
     const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/match_knowledge`, {
       method: "POST",
       headers: {
@@ -72,6 +70,7 @@ export default async function handler(req, res) {
         match_threshold: 0.3,
         match_count:     matchCount,
         p_tenant_id:     effectiveTenant,
+        p_agent_id:      agent_id || null,
       }),
     });
 
@@ -82,7 +81,6 @@ export default async function handler(req, res) {
 
     const matches = await rpcRes.json();
 
-    // ── Step 3: Format matches into injected context text ─────────────────
     if (!matches || matches.length === 0) {
       return res.status(200).json({ context: "", matchCount: 0, entries: [] });
     }
@@ -96,20 +94,13 @@ export default async function handler(req, res) {
 
     const finalMatches = jurisdictionFiltered.length > 0 ? jurisdictionFiltered : matches;
 
-    // Build the context block Claude will receive
+    // Build context block — include teaching_note if present
     const contextLines = finalMatches.map(m => {
-      const jurisdictionTag = m.jurisdiction !== "All"
-        ? `[JURISDICTION: ${m.jurisdiction}] `
-        : "";
-      const priorityTag = m.priority >= 80
-        ? "[CRITICAL PRIORITY] "
-        : m.priority >= 65
-        ? "[HIGH PRIORITY] "
-        : m.priority >= 40
-        ? "[MEDIUM PRIORITY] "
-        : "[LOW PRIORITY] ";
+      const jurisdictionTag = m.jurisdiction !== "All" ? `[JURISDICTION: ${m.jurisdiction}] ` : "";
+      const priorityTag = m.priority >= 80 ? "[CRITICAL PRIORITY] " : m.priority >= 65 ? "[HIGH PRIORITY] " : m.priority >= 40 ? "[MEDIUM PRIORITY] " : "[LOW PRIORITY] ";
+      const teachingNote = m.teaching_note ? `\n[TEACHING NOTE: ${m.teaching_note}]` : "";
 
-      return `--- KNOWLEDGE BASE ENTRY: ${m.title} ---\n${jurisdictionTag}${priorityTag}\n${m.content}`;
+      return `--- KNOWLEDGE BASE ENTRY: ${m.title} ---\n${jurisdictionTag}${priorityTag}${teachingNote}\n${m.content}`;
     });
 
     const context = `The following NIGP knowledge base entries are relevant to this analysis. Apply them when generating recommendations:\n\n${contextLines.join("\n\n")}`;
@@ -122,6 +113,7 @@ export default async function handler(req, res) {
         title:      m.title,
         similarity: m.similarity,
         tenant_id:  m.tenant_id,
+        agent_id:   m.agent_id,
       })),
     });
 

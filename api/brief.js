@@ -9,17 +9,25 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "API key not configured" });
 
-  try {
-    const { system, messages, ragContext } = req.body;
+  // ── Agent-specific system prompts ────────────────────────────────────────────
+  // Each agent has a persona that shapes how they write their briefing.
+  // These are injected when agent_id is passed from the frontend.
+  const AGENT_PROMPTS = {
+    robyn: `You are Robyn Castellanos, a senior NIGP-certified procurement consultant with 10 years of government procurement experience. Your specialty is NIGP best practice and forward-looking procurement strategy. Write in a direct, authoritative tone grounded in NIGP methodology, Texas procurement law, and NASPO cooperative purchasing standards. Cite specific statutes and frameworks by name. Write in flowing paragraphs like a strategy memo — no bullet points.`,
+    bob:   `You are Bob Whitfield, a professional procurement analyst specializing in legal compliance and internal audit readiness. Your focus is identifying legal exposure and audit defensibility in government procurement. Write with a compliance-first perspective grounded in your jurisdiction's legal framework. Be precise about dollar thresholds and statutory requirements. Write in flowing paragraphs — no bullet points.`,
+    mike:  `You are Mike Alvarez, a senior procurement analyst specializing in industry benchmarking. Your specialty is comparing agency spend patterns against government procurement industry norms. Identify where the agency is above or below typical performance benchmarks. Write in flowing paragraphs — no bullet points.`,
+    chloe: `You are Chloe Okafor, a junior procurement analyst. Provide a clear, straightforward summary of the most obvious procurement patterns and concerns. Keep language accessible and actionable. Write in flowing paragraphs — no bullet points.`,
+    christy: `You are Christy Park, a marketing designer specializing in executive presentation. Take the provided procurement analysis and reformat it for a board-ready executive and legislative audience. Use clear, compelling language. Organize for maximum executive impact — no bullet points, flowing paragraphs with strong section headers.`,
+  };
 
-    // ── Step 1: Fetch RAG context if spend summary is available ───────────
-    // ragContext is passed from the frontend: { queryText, jurisdiction, triggers }
-    // If Supabase isn't configured yet or RAG fails, we fall back gracefully
+  try {
+    const { system, messages, ragContext, agent_id } = req.body;
+
+    // ── Fetch RAG context if available ───────────────────────────────────────
     let knowledgeContext = "";
 
     if (ragContext?.queryText && process.env.SUPABASE_URL && process.env.OPENAI_API_KEY) {
       try {
-        // Call rag-query as an internal fetch using Vercel's internal URL pattern
         const ragRes = await fetch(
           `${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "http://localhost:3000"}/api/rag-query`,
           {
@@ -30,29 +38,31 @@ export default async function handler(req, res) {
               jurisdiction: ragContext.jurisdiction || null,
               triggers:     ragContext.triggers     || [],
               matchCount:   5,
+              agent_id:     agent_id || null,  // v3: scope RAG to this agent
             }),
           }
         );
 
         if (ragRes.ok) {
           const ragData = await ragRes.json();
-          if (ragData.context) {
-            knowledgeContext = ragData.context;
-          }
+          if (ragData.context) knowledgeContext = ragData.context;
         }
-        // RAG failure is non-fatal — briefing continues without it
       } catch (ragErr) {
         console.error("RAG query failed (non-fatal):", ragErr.message);
       }
     }
 
-    // ── Step 2: Build enriched system prompt ──────────────────────────────
-    const baseSystem = system || "";
-    const enrichedSystem = knowledgeContext
-      ? `${knowledgeContext}\n\n---\n\n${baseSystem}`
-      : baseSystem;
+    // ── Build system prompt ───────────────────────────────────────────────────
+    // Priority: agent persona > passed system > base
+    const agentPrompt = agent_id && AGENT_PROMPTS[agent_id] ? AGENT_PROMPTS[agent_id] : "";
+    const baseSystem  = system || "";
+    const promptCore  = agentPrompt || baseSystem;
 
-    // ── Step 3: Call Claude ───────────────────────────────────────────────
+    const enrichedSystem = knowledgeContext
+      ? `${knowledgeContext}\n\n---\n\n${promptCore}`
+      : promptCore;
+
+    // ── Call Claude ───────────────────────────────────────────────────────────
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -61,10 +71,10 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model:      "claude-haiku-4-5-20251001",
         max_tokens: 6000,
-        system: enrichedSystem,
-        messages: messages || [],
+        system:     enrichedSystem,
+        messages:   messages || [],
       }),
     });
 
