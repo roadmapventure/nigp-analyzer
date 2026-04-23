@@ -433,7 +433,7 @@ export default function NIGPAnalyzer() {
       <div style={{flex:1}}/>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         <button onClick={()=>window.open("/admin","_blank")} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body,display:"flex",alignItems:"center",gap:6}}>
-          <span style={{fontSize:11}}>⚙</span> Build Analyst Team
+          <span style={{fontSize:11}}>⚙</span> Build AI Analyst Team
         </button>
         <div style={{position:"relative"}}>
           <button onClick={()=>setHelpDropdown(d=>!d)} style={{background:helpDropdown?`${T.brass}30`:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body,display:"flex",alignItems:"center",gap:6}}>

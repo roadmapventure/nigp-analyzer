@@ -1256,7 +1256,7 @@ export default function TeamBuilder(){
         <div>
           <div style={{fontFamily:display,fontSize:17,fontWeight:600,letterSpacing:.2,lineHeight:1}}>NIGP Spend Analyzer</div>
           <div style={{fontFamily:body,fontSize:9.5,color:"#b8c5d8",letterSpacing:1.5,textTransform:"uppercase",marginTop:3}}>
-            Procurement Intelligence <span style={{color:T.brass,fontWeight:600}}>· Build Analyst Team</span>
+            Procurement Intelligence <span style={{color:T.brass,fontWeight:600}}>· Build AI Analyst Team</span>
           </div>
         </div>
         <div style={{flex:1}}/>
