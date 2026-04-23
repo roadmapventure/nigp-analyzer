@@ -234,7 +234,7 @@ const NAV_GROUPS = [
   { id:"strategy-group", label:"Strategy", tabs:[
     {id:"flags",label:"Concerns",icon:"⚑"},
     {id:"localspend",label:"Local Spend",icon:"📍"},
-    {id:"concentration",label:"Vendor Risk",icon:"⚡"},
+    {id:"concentration",label:"Vendor Analysis",icon:"⚡"},
     {id:"aibriefing",label:"AI Review",icon:"✨"},
   ]},
   { id:"data-group", label:"Data", tabs:[
@@ -375,7 +375,7 @@ export default function NIGPAnalyzer() {
       <div style={{flex:1}}/>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         <button onClick={()=>window.open("/admin","_blank")} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body,display:"flex",alignItems:"center",gap:6}}>
-          <span style={{fontSize:11}}>⚙</span> Build Analyst Team
+          <span style={{fontSize:11}}>⚙</span> Admin
         </button>
         <div style={{position:"relative"}}>
           <button onClick={()=>setHelpDropdown(d=>!d)} style={{background:helpDropdown?`${T.brass}30`:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body,display:"flex",alignItems:"center",gap:6}}>
@@ -420,9 +420,17 @@ export default function NIGPAnalyzer() {
       <style>{GLOBAL_STYLE}</style>
       <Header/>
       <div style={{maxWidth:"100%",margin:"32px auto",padding:"0 28px"}}>
-        <div style={{marginBottom:22}}>
-          <div style={{fontFamily:display,fontSize:22,fontWeight:600,color:T.navy,marginBottom:5}}>Confirm Column Mapping</div>
-          <div style={{fontSize:13,color:T.muted}}>Found <strong style={{color:T.ink}}>{columns.length} columns</strong> in <strong style={{color:T.ink}}>{fileName}</strong>.</div>
+        {/* Top action strip */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+          <div>
+            <div style={{fontFamily:display,fontSize:22,fontWeight:600,color:T.navy,marginBottom:5}}>Confirm Column Mapping</div>
+            <div style={{fontSize:13,color:T.muted}}>Found <strong style={{color:T.ink}}>{columns.length} columns</strong> in <strong style={{color:T.ink}}>{fileName}</strong>.</div>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            {activeTab==="updatefile"&&<button onClick={()=>{setStage("analyze");setActiveTab("overview");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"10px 20px",cursor:"pointer",fontSize:13,fontFamily:body}}>Cancel</button>}
+            <button onClick={()=>{setStage("overview");setData(null);setError("");setFileName("");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"10px 20px",cursor:"pointer",fontSize:13,fontFamily:body}}>+ Add New File</button>
+            <button onClick={runAnalysis} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"10px 24px",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:display}}>Run Analysis →</button>
+          </div>
         </div>
         <div style={{display:"grid",gap:10}}>
           {Object.entries(FIELD_DEFS).map(([field,def])=>{
@@ -448,9 +456,11 @@ export default function NIGPAnalyzer() {
           })}
         </div>
         {error&&<div style={{marginTop:14,background:`${T.flag}10`,border:`1px solid ${T.flag}44`,padding:"12px 16px",color:T.flag,fontSize:14}}>⚠ {error}</div>}
-        <div style={{display:"flex",gap:12,marginTop:20}}>
-          <button onClick={()=>{setStage("overview");setData(null);setError("");setFileName("");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"12px 24px",cursor:"pointer",fontSize:14,fontFamily:body}}>+ Add File</button>
-          <button onClick={runAnalysis} style={{flex:1,background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"12px 24px",cursor:"pointer",fontSize:15,fontWeight:700,fontFamily:display}}>Run Analysis →</button>
+        {/* Bottom action strip */}
+        <div style={{display:"flex",gap:10,marginTop:20,justifyContent:"flex-end"}}>
+          {activeTab==="updatefile"&&<button onClick={()=>{setStage("analyze");setActiveTab("overview");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"12px 24px",cursor:"pointer",fontSize:13,fontFamily:body}}>Cancel</button>}
+          <button onClick={()=>{setStage("overview");setData(null);setError("");setFileName("");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"12px 24px",cursor:"pointer",fontSize:14,fontFamily:body}}>+ Add New File</button>
+          <button onClick={runAnalysis} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"12px 24px",cursor:"pointer",fontSize:15,fontWeight:700,fontFamily:display}}>Run Analysis →</button>
         </div>
       </div>
     </div>
@@ -613,7 +623,7 @@ export default function NIGPAnalyzer() {
                     <div style={{background:`${T.flag}08`,border:`1px solid ${T.flag}40`,padding:"11px 16px",display:"flex",alignItems:"center",gap:12}}>
                       <span style={{color:T.flag,fontFamily:mono,fontSize:12,fontWeight:700,flexShrink:0}}>!</span>
                       <div>
-                        <div style={{fontSize:13,fontWeight:700,color:T.navy,marginBottom:2,fontFamily:display}}>{highFlags} high-priority procurement concerns detected</div>
+                        <div style={{fontSize:13,fontWeight:700,color:T.navy,marginBottom:2,fontFamily:display}}>{data.flags.length} concern{data.flags.length!==1?"s":""} detected · {data.flags.filter(f=>f.severity==="high").length} high · {data.flags.filter(f=>f.severity==="medium").length} medium</div>
                         <div style={{fontSize:12,color:T.mutedDeep}}>
                           {data.flags.map(f=>`⚑ ${f.title.split("—")[0].trim()}`).join(" · ")}
                           {" "}<button onClick={()=>setActiveTab("flags")} style={{background:"none",border:"none",color:T.flag,cursor:"pointer",fontSize:12,fontWeight:700,padding:0,fontFamily:body}}>View all →</button>
@@ -637,14 +647,14 @@ export default function NIGPAnalyzer() {
                     <Card title="Spend Distribution" subtitle="Share of total by category">
                       <div style={{width:"100%",height:440,position:"relative"}}>
                         <ResponsiveContainer width="100%" height="100%">
-                          <PieChart margin={{top:0,right:0,bottom:0,left:0}}>
-                            <Pie data={pieData} cx="50%" cy="36%" outerRadius={105} dataKey="value" nameKey="name"
-                              label={({percent})=>percent>0.04?`${(percent*100).toFixed(0)}%`:""}
-                              labelLine={{stroke:T.line,strokeWidth:1}}>
+                          <PieChart margin={{top:20,right:30,bottom:0,left:30}}>
+                            <Pie data={pieData} cx="50%" cy="42%" outerRadius={120} dataKey="value" nameKey="name"
+                              label={({percent,name})=>percent>0.05?`${(percent*100).toFixed(0)}%`:""}
+                              labelLine={{stroke:T.line,strokeWidth:1,length:12}}>
                               {pieData.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} stroke={T.paperDeep} strokeWidth={2}/>)}
                             </Pie>
                             <Tooltip content={<Tip/>}/>
-                            <Legend formatter={v=><span style={{color:T.mutedDeep,fontSize:9,fontFamily:body}}>{v}</span>} wrapperStyle={{paddingTop:4,fontSize:9}}/>
+                            <Legend formatter={v=><span style={{color:T.mutedDeep,fontSize:9,fontFamily:body}}>{v.length>22?v.slice(0,21)+"…":v}</span>} wrapperStyle={{paddingTop:8,fontSize:9}}/>
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
@@ -669,12 +679,12 @@ export default function NIGPAnalyzer() {
               {activeTab==="categories"&&(
                 <Card title="All Categories — Full Spend Breakdown" subtitle={`${data.classArr.length} categories matched`} span2>
                   <ResponsiveContainer width="100%" height={Math.max(500,data.classArr.length*26)}>
-                    <BarChart data={data.classArr.map(x=>({...x,label:x.displayLabel,_pct:x.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:20,bottom:5}}>
-                      <XAxis type="number" tickFormatter={fmt} tick={{fill:T.muted,fontSize:11,fontFamily:mono}} axisLine={false} tickLine={false} xAxisId="bottom" orientation="bottom"/>
+                    <BarChart data={data.classArr.map(x=>({...x,label:x.displayLabel,_pct:x.total/data.totalSpend*100}))} layout="vertical" margin={{left:10,right:80,top:8,bottom:8}}>
                       <XAxis type="number" tickFormatter={fmt} tick={{fill:T.muted,fontSize:11,fontFamily:mono}} axisLine={false} tickLine={false} xAxisId="top" orientation="top"/>
+                      <XAxis type="number" tickFormatter={fmt} tick={{fill:T.muted,fontSize:11,fontFamily:mono}} axisLine={false} tickLine={false} xAxisId="bottom" orientation="bottom"/>
                       <YAxis type="category" dataKey="label" width={160} tick={{fill:T.mutedDeep,fontSize:10,fontFamily:body}} axisLine={false} tickLine={false}/>
                       <Tooltip content={<Tip total={data.totalSpend}/>}/>
-                      <Bar dataKey="total" radius={[0,3,3,0]} label={<PctBarLabel total={data.totalSpend}/>} xAxisId="bottom">
+                      <Bar dataKey="total" radius={[0,3,3,0]} label={<PctBarLabel total={data.totalSpend}/>} xAxisId="top">
                         {data.classArr.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} fillOpacity={0.85}/>)}
                       </Bar>
                     </BarChart>
@@ -926,21 +936,28 @@ export default function NIGPAnalyzer() {
                     <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"16px 20px",marginBottom:16,position:"relative"}}>
                       <Corners/>
                       <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:12}}>Local Spend Analysis</div>
-                      <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-end"}}>
-                        <div style={{display:"flex",background:T.cardAlt,border:`1px solid ${T.line}`,overflow:"hidden"}}>
-                          {[{val:"city",label:"🏙 City",avail:hasCity},{val:"state",label:"🗺 State",avail:hasState}].map(opt=>(
-                            <button key={opt.val} onClick={()=>{if(opt.avail){setLocalViewBy(opt.val);setLocalSelected("");}}} disabled={!opt.avail}
-                              style={{padding:"8px 16px",fontSize:12,fontWeight:700,cursor:opt.avail?"pointer":"not-allowed",border:"none",fontFamily:body,opacity:opt.avail?1:0.35,background:localViewBy===opt.val&&opt.avail?`${T.moss}18`:"transparent",color:localViewBy===opt.val&&opt.avail?T.moss:T.muted,borderRight:`1px solid ${T.line}`}}>{opt.label}</button>
-                          ))}
+                      <div style={{display:"flex",gap:16,flexWrap:"wrap",alignItems:"flex-start"}}>
+                        <div>
+                          <div style={{fontFamily:mono,fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:8}}>Choose either — City or State</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            {[{val:"city",label:"🏙 Search by City",avail:hasCity},{val:"state",label:"🗺 Search by State",avail:hasState}].map(opt=>(
+                              <button key={opt.val} onClick={()=>{if(opt.avail){setLocalViewBy(opt.val);setLocalSelected("");}}} disabled={!opt.avail}
+                                style={{padding:"8px 16px",fontSize:12,fontWeight:700,cursor:opt.avail?"pointer":"not-allowed",border:`1px solid ${localViewBy===opt.val&&opt.avail?T.moss:T.line}`,fontFamily:body,opacity:opt.avail?1:0.35,background:localViewBy===opt.val&&opt.avail?`${T.moss}15`:T.cardAlt,color:localViewBy===opt.val&&opt.avail?T.moss:T.muted,textAlign:"left",minWidth:180}}>{opt.label}</button>
+                            ))}
+                          </div>
                         </div>
-                        <select value={localSelected} onChange={e=>setLocalSelected(e.target.value)} disabled={dropdownOptions.length===0}
-                          style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"8px 12px",color:localSelected?T.ink:T.muted,fontSize:13,fontFamily:body,cursor:"pointer",outline:"none",minWidth:180}}>
-                          <option value="">— Choose a {localViewBy==="city"?"city":"state"} —</option>
-                          {dropdownOptions.map(v=><option key={v} value={v}>{v}</option>)}
-                        </select>
-                        <button onClick={()=>{if(localSelected) setLocalApplied({viewBy:localViewBy,value:localSelected});}} disabled={!localSelected}
-                          style={{background:localSelected?`linear-gradient(135deg,${T.moss},${T.brassDeep})`:`${T.line}`,border:"none",color:localSelected?T.card:T.muted,padding:"8px 20px",fontSize:13,fontWeight:700,cursor:localSelected?"pointer":"not-allowed",fontFamily:display}}>Apply →</button>
-                        {localApplied&&<button onClick={()=>{setLocalApplied(null);setLocalSelected("");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"8px 14px",fontSize:13,cursor:"pointer",fontFamily:body}}>Reset</button>}
+                        <div style={{display:"flex",flexDirection:"column",gap:8,alignSelf:"flex-end"}}>
+                          <select value={localSelected} onChange={e=>setLocalSelected(e.target.value)} disabled={dropdownOptions.length===0}
+                            style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"8px 12px",color:localSelected?T.ink:T.muted,fontSize:13,fontFamily:body,cursor:"pointer",outline:"none",minWidth:200}}>
+                            <option value="">— Choose a {localViewBy==="city"?"city":"state"} —</option>
+                            {dropdownOptions.map(v=><option key={v} value={v}>{v}</option>)}
+                          </select>
+                          <div style={{display:"flex",gap:8}}>
+                            <button onClick={()=>{if(localSelected) setLocalApplied({viewBy:localViewBy,value:localSelected});}} disabled={!localSelected}
+                              style={{background:localSelected?`linear-gradient(135deg,${T.moss},${T.brassDeep})`:`${T.line}`,border:"none",color:localSelected?T.card:T.muted,padding:"8px 20px",fontSize:13,fontWeight:700,cursor:localSelected?"pointer":"not-allowed",fontFamily:display}}>Apply →</button>
+                            {localApplied&&<button onClick={()=>{setLocalApplied(null);setLocalSelected("");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"8px 14px",fontSize:13,cursor:"pointer",fontFamily:body}}>Reset</button>}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     {!localApplied&&<div style={{background:`${T.moss}06`,border:`1px solid ${T.moss}22`,padding:"60px 40px",textAlign:"center"}}><div style={{fontFamily:display,fontSize:18,fontWeight:600,color:T.navy,marginBottom:8}}>Select a local area to begin</div></div>}
@@ -1000,8 +1017,19 @@ export default function NIGPAnalyzer() {
               {/* ── AI REVIEW ── */}
               {activeTab==="aibriefing"&&(
                 <div style={{maxWidth:"100%"}}>
+                  {/* Team report CTA */}
+                  <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,padding:"18px 22px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap",borderBottom:`3px solid ${T.brass}`}}>
+                    <div>
+                      <div style={{fontFamily:mono,fontSize:9,color:T.brassLight,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:5}}>Your AI Team's Strategic Report</div>
+                      <div style={{fontFamily:display,fontSize:16,fontWeight:600,color:T.card,marginBottom:4}}>Get a deeper analysis from your analyst team</div>
+                      <div style={{fontFamily:body,fontSize:12,color:"#b8c5d8",lineHeight:1.5}}>Choose up to 2 analysts — Chloe, Mike, Bob, or Robyn — and compare their reports side by side.</div>
+                    </div>
+                    <button onClick={()=>window.open("/admin","_blank")} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"11px 24px",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:display,whiteSpace:"nowrap",flexShrink:0}}>
+                      🐝 Build Analyst Team →
+                    </button>
+                  </div>
                   <div style={{textAlign:"center",marginBottom:24}}>
-                    <div style={{fontFamily:display,fontSize:22,fontWeight:600,marginBottom:6,color:T.navy}}>✨ AI CPO Executive Briefing</div>
+                    <div style={{fontFamily:display,fontSize:22,fontWeight:600,marginBottom:6,color:T.navy}}>✨ Quick AI Briefing</div>
                     <div style={{fontSize:13,color:T.muted,marginBottom:20,lineHeight:1.5,fontFamily:body}}>Powered by Claude AI · Produces a board-ready executive summary from your spend data in ~30 seconds.</div>
                     <button onClick={generateBriefing} disabled={aiLoading}
                       style={{background:aiLoading?T.line:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:aiLoading?T.muted:T.navy,padding:"13px 36px",cursor:aiLoading?"not-allowed":"pointer",fontSize:15,fontWeight:700,fontFamily:display,transition:"all 0.2s"}}>

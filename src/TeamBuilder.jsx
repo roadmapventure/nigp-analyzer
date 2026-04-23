@@ -52,6 +52,14 @@ const AGENTS = [
   },
 ];
 
+const AGENT_PRONOUNS = {
+  chloe:   { subject:"she", object:"her", possessive:"her" },
+  mike:    { subject:"he",  object:"him", possessive:"his" },
+  bob:     { subject:"he",  object:"him", possessive:"his" },
+  christy: { subject:"she", object:"her", possessive:"her" },
+  robyn:   { subject:"she", object:"her", possessive:"her" },
+};
+
 const CATEGORIES    = ["Compliance","Jurisdiction","Best Practice","Internal","Standards","Methodology","Playbook","Template","Statute"];
 const JURISDICTIONS = ["All","Federal","Texas","California","Florida","New York","Illinois"];
 const FLAG_TRIGGERS = [
@@ -397,20 +405,22 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
 // ══════════════════════════════════════════════════════════════════════════════
 function PersonnelScreen({agent,entries,entriesLoading,onBack,onAddTraining,onTestAgent,onEditEntry,onDeleteEntry,showToast}){
   const agentEntries=entries.filter(e=>e.agent_id===agent.id||e.agent_id==="legacy"&&agent.id==="robyn");
+  const pro=AGENT_PRONOUNS[agent.id]||{subject:"they",object:"them",possessive:"their"};
+  const firstName=agent.name.split(" ")[0];
 
   return(
     <div style={{flex:1,overflowY:"auto",padding:"24px 28px 48px",background:T.paperDeep}}>
       {/* Eyebrow */}
       <div style={{fontFamily:mono,fontSize:9.5,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:4}}>Personnel File · {agent.code} · {agent.trainer} Bench</div>
       <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:3}}>
-        <div style={{fontFamily:display,fontSize:28,fontWeight:500,color:T.navy,letterSpacing:"-.5px"}}>The file of {agent.name}.</div>
+        <div style={{fontFamily:display,fontSize:28,fontWeight:500,color:T.navy,letterSpacing:"-.5px"}}>The personnel file of {agent.name}.</div>
         <div style={{display:"flex",gap:22,alignItems:"baseline"}}>
           {agent.trainable&&<span onClick={()=>onAddTraining(agent)} style={{fontFamily:body,fontSize:13,color:T.brassDeep,cursor:"pointer",fontWeight:500}} className="page-nav-link">Add Training</span>}
           <span onClick={()=>onTestAgent(agent)} style={{fontFamily:body,fontSize:13,color:T.brassDeep,cursor:"pointer",fontWeight:500}} className="page-nav-link">Test This Agent</span>
           <span style={{fontFamily:body,fontSize:13,color:T.brassDeep,cursor:"pointer",fontWeight:500}} className="page-nav-link">Workflows →</span>
         </div>
       </div>
-      <div style={{fontFamily:body,fontStyle:"italic",fontSize:13,color:T.mutedDeep,marginBottom:16}}>Tenure · {agent.hiredOn} · {skillLabel(agent.skill)}-level on the skill ladder</div>
+      <div style={{fontFamily:body,fontStyle:"italic",fontSize:13,color:T.mutedDeep,marginBottom:16}}>Tenure · {agent.hiredOn} · {skillLabel(agent.skill)}-level analyst</div>
       <div style={{height:2,background:T.brass,marginBottom:20}}/>
 
       <div style={{display:"grid",gridTemplateColumns:"252px 1fr 300px",gap:20,alignItems:"start"}}>
@@ -433,7 +443,7 @@ function PersonnelScreen({agent,entries,entriesLoading,onBack,onAddTraining,onTe
           </div>
           {/* Vitals */}
           <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"14px 16px",marginBottom:14}}>
-            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:10}}>Vitals</div>
+            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:10}}>Resume</div>
             {[["Architecture",agent.arch],["Specialty",agent.specialty],["Trainer",agent.trainer],["Update Cadence","Quarterly"],["Update Rights",`${agent.trainer} admin`],["Visibility","Configurable"]].map(([k,v])=>(
               <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${T.lineSoft}`,fontSize:11}}>
                 <span style={{color:T.muted,fontWeight:500}}>{k}</span>
@@ -458,7 +468,7 @@ function PersonnelScreen({agent,entries,entriesLoading,onBack,onAddTraining,onTe
         <div>
           {/* Growth strip */}
           <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.card,padding:"16px 20px",marginBottom:14}}>
-            <div style={{fontFamily:mono,fontSize:8.5,color:T.brassLight,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:10}}>The more you feed {agent.name.split(" ")[0].toLowerCase()}, the smarter {agent.id==="christy"||agent.id==="robyn"?"she":"he"} gets.</div>
+            <div style={{fontFamily:mono,fontSize:8.5,color:T.brassLight,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:10}}>The more {firstName} learns, the deeper {pro.possessive} analysis reporting.</div>
             <div style={{display:"flex",gap:20,marginBottom:12,flexWrap:"wrap"}}>
               {[["Documents",agent.docs],["Class Hours",agent.classes],["Chunks",agent.chunks],["Tokens",agent.chunks>0?(agent.chunks*740/1000).toFixed(2)+"M":"0"]].map(([k,v])=>(
                 <div key={k}>
@@ -653,7 +663,10 @@ function TeachScreen({agent,existingEntry,onBack,onSaved,showToast}){
       {/* Title */}
       <div style={{fontFamily:mono,fontSize:9.5,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:4}}>Training Session · {isEditing?"Edit Document":"Add Training"}</div>
       <div style={{fontFamily:display,fontSize:28,fontWeight:500,color:T.navy,letterSpacing:"-.5px",marginBottom:5}}>You're teaching {agent.name.split(" ")[0]}.</div>
-      <div style={{fontFamily:body,fontStyle:"italic",fontSize:13,color:T.mutedDeep,marginBottom:16}}>Upload a document, tell {agent.id==="christy"||agent.id==="robyn"?"her":"him"} how to weight it, and mark which flags it helps trigger.</div>
+      <div style={{fontFamily:body,fontStyle:"italic",fontSize:13,color:T.mutedDeep,marginBottom:16}}>Upload a document, tell {(AGENT_PRONOUNS[agent.id]||{object:"them"}).object} how to weight it, and mark which flags it helps trigger.</div>
+      <div style={{display:"flex",justifyContent:"flex-start",marginBottom:14}}>
+        <button onClick={onBack} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"7px 18px",fontFamily:body,fontSize:13,cursor:"pointer"}}>← Cancel</button>
+      </div>
       <div style={{height:2,background:T.brass,marginBottom:20}}/>
 
       {/* Agent identity strip */}
@@ -807,12 +820,9 @@ function TeachScreen({agent,existingEntry,onBack,onSaved,showToast}){
             {/* Action strip */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:16,paddingTop:16,borderTop:`1px solid ${T.lineSoft}`}}>
               <button onClick={onBack} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"9px 20px",fontFamily:body,fontSize:13,cursor:"pointer"}}>Cancel</button>
-              <div style={{display:"flex",gap:10}}>
-                <button onClick={()=>{setForm(f=>({...f}));showToast("Saved as draft");}} disabled={!form.title||locked} style={{background:"transparent",border:`1px solid ${T.brass}`,color:T.brassDeep,padding:"9px 20px",fontFamily:body,fontSize:13,fontWeight:500,cursor:"pointer",opacity:!form.title||locked?.5:1}}>Save as draft</button>
-                <button onClick={handleSave} disabled={!form.title||isSaving||locked} style={{background:!form.title||locked?T.line:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:!form.title||locked?T.muted:T.navy,padding:"10px 24px",fontFamily:display,fontSize:14,fontWeight:700,cursor:!form.title||locked?"not-allowed":"pointer",opacity:isSaving?.7:1}}>
-                  {isSaving?"⏳ Saving…":`▸ Teach ${agent.name.split(" ")[0]} this document`}
-                </button>
-              </div>
+              <button onClick={handleSave} disabled={!form.title||isSaving||locked} style={{background:!form.title||locked?T.line:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:!form.title||locked?T.muted:T.navy,padding:"10px 24px",fontFamily:display,fontSize:14,fontWeight:700,cursor:!form.title||locked?"not-allowed":"pointer",opacity:isSaving?.7:1}}>
+                {isSaving?"⏳ Saving…":`▸ Teach ${agent.name.split(" ")[0]} this document`}
+              </button>
             </div>
           </div>
         </div>
@@ -952,17 +962,16 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
   return(
     <div style={{flex:1,overflowY:"auto",padding:"24px 28px 60px",background:T.paperDeep}}>
       {/* Title */}
-      <div style={{fontFamily:mono,fontSize:9.5,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:5}}>Quality Assurance · Agent Testing</div>
+      <div style={{fontFamily:mono,fontSize:9.5,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:5}}>Acquired Skillset · Agent Testing</div>
       <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:5}}>
-        <div style={{fontFamily:display,fontSize:28,fontWeight:500,color:T.navy,letterSpacing:"-.5px"}}>Test My Team.</div>
-        {filterAgent&&<div style={{fontFamily:body,fontSize:12,color:T.brassDeep,padding:"6px 14px",background:`${T.brass}10`,border:`1px solid ${T.brass}30`}}>Testing from {filterAgent.name}'s file · <span style={{cursor:"pointer",textDecoration:"underline"}} onClick={()=>{setSelectedAgents([]);setStage(1);}}>Switch to full team →</span></div>}
+        <div style={{fontFamily:display,fontSize:28,fontWeight:500,color:T.navy,letterSpacing:"-.5px"}}>{filterAgent?`Testing ${filterAgent.name.split(" ")[0]}.`:"Test My Team."}</div>
       </div>
       <div style={{fontFamily:body,fontStyle:"italic",fontSize:13,color:T.mutedDeep,marginBottom:16,maxWidth:580}}>Run standardized procurement scenarios against your agents. Full prompt and RAG context visible here — not available in AI Review.</div>
       <div style={{height:2,background:T.brass,marginBottom:20}}/>
 
-      {/* Stage nav */}
+      {/* Stage nav — hide Pick Agents when launched from Personnel File */}
       <div style={{display:"flex",gap:0,marginBottom:22,borderBottom:`2px solid ${T.brass}`}}>
-        {[["① Pick Agents",1],["② Pick Scenario",2],["③ Results",3]].map(([label,n])=>(
+        {[["① Pick Agents",1],["② Pick Scenario",2],["③ Results",3]].filter(([,n])=>!(filterAgent&&n===1)).map(([label,n])=>(
           <button key={n} onClick={()=>setStage(n)} style={{padding:"8px 22px",fontFamily:mono,fontSize:10,letterSpacing:1,textTransform:"uppercase",border:"none",background:"transparent",cursor:"pointer",color:stage===n?T.navy:T.muted,fontWeight:stage===n?700:400,borderBottom:`2px solid ${stage===n?T.navy:"transparent"}`,marginBottom:-2}}>
             {label}
           </button>
@@ -1022,7 +1031,7 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
             ))}
           </div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <button onClick={()=>setStage(1)} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"9px 20px",fontFamily:body,fontSize:13,cursor:"pointer"}}>← Back</button>
+            <button onClick={()=>setStage(filterAgent?2:1)} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"9px 20px",fontFamily:body,fontSize:13,cursor:"pointer"}}>← Back</button>
             <button onClick={runTest} disabled={runState==="running"} style={{background:runState==="running"?T.line:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:runState==="running"?T.muted:T.navy,padding:"11px 28px",fontFamily:display,fontSize:14,fontWeight:700,cursor:runState==="running"?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:8}}>
               <span>{runState==="running"?"⏳":"🐝"}</span>{runState==="running"?"Running…":"Run Test →"}
             </button>
@@ -1147,21 +1156,20 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
             );
           })()}
 
-          {/* Navigation */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <button onClick={()=>setStage(2)} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"9px 20px",fontFamily:body,fontSize:13,cursor:"pointer"}}>← Change Scenario</button>
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>{setStage(2);setRunState("idle");setResults({});}} style={{background:"transparent",border:`1px solid ${T.brass}`,color:T.brassDeep,padding:"9px 20px",fontFamily:body,fontSize:13,fontWeight:500,cursor:"pointer"}}>Run Another Scenario</button>
-              <button onClick={onBack} style={{background:`linear-gradient(135deg,${T.navy},${T.navyDeep})`,border:"none",color:T.card,padding:"10px 24px",fontFamily:display,fontSize:14,fontWeight:700,cursor:"pointer"}}>← Back to Roster</button>
-            </div>
+          {/* Back to top only — navigate via header or scroll */}
+          <div style={{display:"flex",justifyContent:"center",marginTop:24}}>
+            <button onClick={()=>window.scrollTo({top:0,behavior:"smooth"})} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"9px 28px",fontFamily:body,fontSize:13,cursor:"pointer"}}>↑ Back to Top</button>
           </div>
         </div>
       )}
 
       {stage===3&&runState==="running"&&(
         <div style={{textAlign:"center",padding:"80px 40px"}}>
-          <div style={{fontFamily:display,fontSize:20,fontWeight:600,color:T.navy,marginBottom:12}}>Running test…</div>
-          <div style={{fontFamily:body,fontSize:13,color:T.muted,fontStyle:"italic"}}>Making {selectedAgents.length} live API call{selectedAgents.length>1?"s":""}. This may take 15–30 seconds.</div>
+          <div style={{width:52,height:52,border:`4px solid ${T.brass}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 20px"}}/>
+          <div style={{fontFamily:display,fontSize:20,fontWeight:600,color:T.navy,marginBottom:10}}>Running analysis…</div>
+          <div style={{fontFamily:mono,fontSize:12,color:T.muted,fontStyle:"italic",marginBottom:6}}>Gathering content from knowledge base…</div>
+          <div style={{fontFamily:mono,fontSize:11,color:T.muted,fontStyle:"italic"}}>Making {selectedAgents.length} live API call{selectedAgents.length>1?"s":""}. This may take 15–30 seconds.</div>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
     </div>
@@ -1255,12 +1263,6 @@ export default function TeamBuilder(){
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {screen!=="roster"&&(
             <button onClick={()=>{setScreen("roster");setActiveAgent(null);}} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>← Team Builder</button>
-          )}
-          {screen==="personnel"&&activeAgent&&(
-            <>
-              <button onClick={()=>handleAddTraining(activeAgent)} style={{background:T.moss,border:"none",color:"#fff",padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer",fontWeight:600,display:activeAgent.trainable?"block":"none"}}>+ Add Training</button>
-              <button onClick={()=>handleTestAgent(activeAgent)} style={{background:"transparent",border:`1px solid ${T.brass}`,color:T.brassLight,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>🐝 Test This Agent</button>
-            </>
           )}
           <button onClick={()=>window.close?window.close():window.history.back()} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>← Back to Dashboard</button>
           <button style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>? Help</button>
