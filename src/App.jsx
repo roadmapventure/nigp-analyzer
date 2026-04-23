@@ -274,6 +274,64 @@ export default function NIGPAnalyzer() {
   const [aiError,setAiError]=useState("");
   const [hhiTooltipVisible,setHhiTooltipVisible]=useState(false);
 
+  // AI Review agent picker state
+  const [aiReviewStage,setAiReviewStage]=useState(1); // 1=pick, 2=generating, 3=results
+  const [aiPickedAgents,setAiPickedAgents]=useState([]);
+  const [aiResults,setAiResults]=useState({});
+  const [aiReviewError,setAiReviewError]=useState("");
+  const [aiChristySelected,setAiChristySelected]=useState(false);
+
+  const AI_AGENTS=[
+    {id:"chloe",  name:"Chloe Okafor",     role:"Junior Procurement Analyst",    arch:"LLM Prompt",      skill:18, awareness:10, cost:"Free",  costNum:0,   color:T.brass},
+    {id:"mike",   name:"Mike Alvarez",      role:"Senior Procurement Analyst",    arch:"LLM Deep Prompt", skill:42, awareness:25, cost:"$141",  costNum:141, color:T.brass},
+    {id:"bob",    name:"Bob Whitfield",     role:"Prof. Procurement Analyst",     arch:"RAG",             skill:71, awareness:25, cost:"$339",  costNum:339, color:T.moss},
+    {id:"robyn",  name:"Robyn Castellanos", role:"NIGP Consultant",               arch:"RAG + Deep",      skill:88, awareness:35, cost:"$521",  costNum:521, color:T.brass},
+    {id:"christy",name:"Christy Park",      role:"Marketing Designer",            arch:"LLM Format",      skill:36, awareness:5,  cost:"+$141", costNum:141, color:T.brass, addonOnly:true},
+  ];
+
+  const toggleAiAgent=(id)=>{
+    if(id==="christy") return; // add-on only, not pickable here
+    setAiPickedAgents(prev=>{
+      if(prev.includes(id)) return prev.filter(x=>x!==id);
+      if(prev.length>=2) return prev;
+      return [...prev,id];
+    });
+  };
+
+  const runAiReview=async()=>{
+    if(aiPickedAgents.length===0) return;
+    setAiReviewStage(2); setAiResults({}); setAiReviewError("");
+    const top5cats=data.classArr.slice(0,5).map(c=>`${c.displayLabel}: ${fmtFull(c.total)} (${(c.total/data.totalSpend*100).toFixed(1)}%)`);
+    const top5vend=data.vendorArr.slice(0,5).map(v=>`${v.name}: ${fmtFull(v.total)} (${(v.total/data.totalSpend*100).toFixed(1)}%)`);
+    const flagSummary=data.flags.map(f=>`[${f.severity.toUpperCase()}] ${f.title}: ${f.summary}`);
+    const userMsg=`Analyze this procurement portfolio for an executive briefing.\n\nFile: ${fileName}\nTotal Spend: ${fmtFull(data.totalSpend)}\nTransactions: ${data.txCount.toLocaleString()}\nCategories: ${data.classArr.length}\nVendors: ${data.vendorArr.length}\n\nTOP CATEGORIES:\n${top5cats.join("\n")}\n\nTOP VENDORS:\n${top5vend.join("\n")}\n\nFLAGS:\n${flagSummary.join("\n")}\n\nWrite four sections: Portfolio Overview, Risk Assessment, Strategic Opportunities, Bottom Line. Use flowing paragraphs, no bullet points.`;
+    try{
+      const newResults={};
+      for(const agentId of aiPickedAgents){
+        const res=await fetch("/api/brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:userMsg}],agent_id:agentId,ragContext:{queryText:`${data.flags.map(f=>f.title).join(" ")} procurement analysis ${fileName}`,jurisdiction:"Texas",triggers:[]}})});
+        const json=await res.json();
+        newResults[agentId]=json.content?.[0]?.text||json.error||"No response";
+      }
+      setAiResults(newResults);
+      setAiReviewStage(3);
+    }catch(err){
+      setAiReviewError("Generation failed: "+err.message);
+      setAiReviewStage(1);
+    }
+  };
+
+  const analyzeAiText=(text)=>{
+    if(!text) return{words:0,statutes:0,dollars:0,orgs:0,claims:0,hedges:0};
+    return{
+      words:(text.split(/\s+/).filter(Boolean)).length,
+      statutes:(text.match(/§\s*\d+|CFR\s+\d+|\bLGC\b|\bU\.S\.C\b/gi)||[]).length,
+      dollars:(text.match(/\$[\d,]+(?:\.\d+)?/gi)||[]).length,
+      orgs:(text.match(/\b(?:NIGP|NASPO|GAO|OMB|CPPO|FAR|DIR)\b/g)||[]).length,
+      claims:(text.match(/\d+(?:\.\d+)?%|\d{1,3}(?:,\d{3})+/g)||[]).length,
+      hedges:(text.match(/\b(?:may|might|could|possibly|potentially|appears|seems|likely|unclear|suggests)\b/gi)||[]).length,
+    };
+  };
+
   const generateBriefing = async () => {
     if (!data) return;
     setAiLoading(true); setAiResult(null); setAiError("");
@@ -375,7 +433,7 @@ export default function NIGPAnalyzer() {
       <div style={{flex:1}}/>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         <button onClick={()=>window.open("/admin","_blank")} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body,display:"flex",alignItems:"center",gap:6}}>
-          <span style={{fontSize:11}}>⚙</span> Admin
+          <span style={{fontSize:11}}>⚙</span> Build Analyst Team
         </button>
         <div style={{position:"relative"}}>
           <button onClick={()=>setHelpDropdown(d=>!d)} style={{background:helpDropdown?`${T.brass}30`:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body,display:"flex",alignItems:"center",gap:6}}>
@@ -1015,75 +1073,225 @@ export default function NIGPAnalyzer() {
               })()}
 
               {/* ── AI REVIEW ── */}
-              {activeTab==="aibriefing"&&(
-                <div style={{maxWidth:"100%"}}>
-                  {/* Team report CTA */}
-                  <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,padding:"18px 22px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap",borderBottom:`3px solid ${T.brass}`}}>
-                    <div>
-                      <div style={{fontFamily:mono,fontSize:9,color:T.brassLight,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:5}}>Your AI Team's Strategic Report</div>
-                      <div style={{fontFamily:display,fontSize:16,fontWeight:600,color:T.card,marginBottom:4}}>Get a deeper analysis from your analyst team</div>
-                      <div style={{fontFamily:body,fontSize:12,color:"#b8c5d8",lineHeight:1.5}}>Choose up to 2 analysts — Chloe, Mike, Bob, or Robyn — and compare their reports side by side.</div>
+              {activeTab==="aibriefing"&&(()=>{
+                const a1id=aiPickedAgents[0]; const a2id=aiPickedAgents[1];
+                const a1=AI_AGENTS.find(a=>a.id===a1id); const a2=AI_AGENTS.find(a=>a.id===a2id);
+                const totalCost=aiPickedAgents.reduce((s,id)=>{const a=AI_AGENTS.find(x=>x.id===id);return s+(a?.costNum||0);},0);
+                const showDelta=aiReviewStage===3&&a1id&&a2id&&aiResults[a1id]&&aiResults[a2id];
+                const m1=showDelta?analyzeAiText(aiResults[a1id]):null;
+                const m2=showDelta?analyzeAiText(aiResults[a2id]):null;
+                const SBAR=[["Words",m1?.words,m2?.words],[`Statutes`,m1?.statutes,m2?.statutes],["$ Refs",m1?.dollars,m2?.dollars],["Org Refs",m1?.orgs,m2?.orgs],["Data Claims",m1?.claims,m2?.claims],["Hedges",m1?.hedges,m2?.hedges]];
+                return(
+                  <div style={{maxWidth:"100%"}}>
+                    {/* Page title */}
+                    <div style={{marginBottom:4}}>
+                      <div style={{fontFamily:mono,fontSize:9.5,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:5}}>Strategy · AI Review</div>
+                      <div style={{fontFamily:display,fontSize:26,fontWeight:500,color:T.navy,letterSpacing:"-.5px",marginBottom:5}}>Your AI Team's Strategic Report</div>
+                      <div style={{fontFamily:body,fontStyle:"italic",fontSize:13,color:T.mutedDeep,marginBottom:16,maxWidth:580}}>Choose up to 2 analysts from your team. Each will review your data through the lens of their specialty and knowledge base. Compare their reports side by side, then choose the one that fits your audience.</div>
                     </div>
-                    <button onClick={()=>window.open("/admin","_blank")} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"11px 24px",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:display,whiteSpace:"nowrap",flexShrink:0}}>
-                      🐝 Build Analyst Team →
-                    </button>
-                  </div>
-                  <div style={{textAlign:"center",marginBottom:24}}>
-                    <div style={{fontFamily:display,fontSize:22,fontWeight:600,marginBottom:6,color:T.navy}}>✨ Quick AI Briefing</div>
-                    <div style={{fontSize:13,color:T.muted,marginBottom:20,lineHeight:1.5,fontFamily:body}}>Powered by Claude AI · Produces a board-ready executive summary from your spend data in ~30 seconds.</div>
-                    <button onClick={generateBriefing} disabled={aiLoading}
-                      style={{background:aiLoading?T.line:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:aiLoading?T.muted:T.navy,padding:"13px 36px",cursor:aiLoading?"not-allowed":"pointer",fontSize:15,fontWeight:700,fontFamily:display,transition:"all 0.2s"}}>
-                      {aiLoading?"⏳ Generating…":"⚡ Generate Executive Briefing"}
-                    </button>
-                  </div>
-                  {aiError&&<div style={{background:`${T.flag}10`,border:`1px solid ${T.flag}44`,padding:"14px 18px",color:T.flag,fontSize:14,marginBottom:16}}>⚠ {aiError}</div>}
-                  {aiLoading&&(
-                    <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"60px 40px",textAlign:"center",position:"relative"}}>
-                      <Corners/>
-                      <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:T.navy,marginBottom:8}}>Claude is analyzing your procurement data…</div>
-                      <div style={{fontSize:13,color:T.muted,fontFamily:body}}>Reading {data.txCount.toLocaleString()} transactions · {data.flags.length} health flags · {data.classArr.length} categories</div>
+                    <div style={{height:2,background:T.brass,marginBottom:18}}/>
+
+                    {/* Stage tabs */}
+                    <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:`2px solid ${T.brass}`}}>
+                      {[["① Pick Your Team",1],["② Generating",2],["③ Review & Choose",3]].map(([label,n])=>(
+                        <div key={n} style={{padding:"8px 20px",fontFamily:mono,fontSize:10,letterSpacing:1,textTransform:"uppercase",color:aiReviewStage===n?T.navy:aiReviewStage>n?T.moss:T.muted,fontWeight:aiReviewStage===n?700:400,borderBottom:`2px solid ${aiReviewStage===n?T.navy:"transparent"}`,marginBottom:-2,cursor:aiReviewStage>n?"pointer":"default"}} onClick={()=>aiReviewStage>n&&setAiReviewStage(n)}>{label}</div>
+                      ))}
                     </div>
-                  )}
-                  {aiResult&&!aiLoading&&(
-                    <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"28px 36px",position:"relative"}}>
-                      <Corners/>
-                      <div style={{borderBottom:`2px solid ${T.brass}`,paddingBottom:16,marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-                        <div>
-                          <div style={{fontSize:10,color:T.brassDeep,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4,fontFamily:mono}}>Confidential · Executive Briefing</div>
-                          <div style={{fontFamily:display,fontSize:20,fontWeight:600,color:T.navy,marginBottom:3}}>Procurement Intelligence Report</div>
-                          <div style={{fontSize:12,color:T.muted,fontFamily:body}}>{fileName} · Generated {new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})}</div>
+
+                    {/* STAGE 1: PICK */}
+                    {aiReviewStage===1&&(
+                      <div>
+                        <div style={{fontFamily:body,fontSize:12,color:T.muted,fontStyle:"italic",marginBottom:16,padding:"9px 14px",background:`${T.brass}06`,border:`1px solid ${T.brass}20`}}>
+                          Select 1 or 2 analysts to generate your strategic report. Analysts with RAG training deliver deeper, jurisdiction-specific insights.
                         </div>
-                        <div style={{display:"flex",gap:8,flexShrink:0}}>
-                          <button onClick={()=>{
-                            const printWindow = window.open("","_blank","width=900,height=700");
-                            printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CPO Briefing — ${fileName}</title><style>@page{margin:2cm}*{box-sizing:border-box}body{background:#fff;font-family:'Georgia',serif;color:#28221a;max-width:100%;padding:0;font-size:13px;line-height:1.7}h1{font-size:22px;color:#12243c;margin:0 0 4px}h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#886224;border-bottom:1px solid #c8bb9a;padding-bottom:6px;margin-top:28px;margin-bottom:12px}h3{font-size:14px;color:#12243c;margin-bottom:8px}p{color:#28221a;margin:0 0 12px}strong{color:#12243c}.meta{font-size:12px;color:#786d52;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid #c8bb9a}.footer{margin-top:40px;padding-top:12px;border-top:1px solid #c8bb9a;font-size:11px;color:#786d52}@media print{body{font-size:12px}}</style></head><body><h1>Procurement Intelligence Report</h1><div class="meta">${fileName} &nbsp;·&nbsp; Generated ${new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})}</div>${aiResult}<div class="footer">Generated by NIGP Spend Analyzer · Claude AI · ${data.txCount.toLocaleString()} transactions · ${fmtFull(data.totalSpend)} total spend</div></body></html>`);
-                            printWindow.document.close(); printWindow.focus();
-                            setTimeout(()=>{ printWindow.print(); printWindow.close(); },500);
-                          }} style={{background:T.cardAlt,border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"7px 14px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:body}}>⬇ Download PDF</button>
-                          <button onClick={generateBriefing} style={{background:"transparent",border:`1px solid ${T.brass}`,color:T.brassDeep,padding:"7px 14px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:body}}>↻ Regenerate</button>
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:16}}>
+                          {AI_AGENTS.map(a=>{
+                            const isSel=aiPickedAgents.includes(a.id);
+                            const bc=isSel?(a.color===T.moss?T.moss:T.brass):T.line;
+                            return(
+                              <div key={a.id} onClick={()=>toggleAiAgent(a.id)} style={{background:T.card,border:`2px solid ${bc}`,position:"relative",cursor:a.addonOnly?"default":"pointer",padding:"12px 10px",display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",background:isSel?`${bc}08`:T.card,boxShadow:isSel?`0 0 0 1px ${bc}30`:"none",opacity:a.addonOnly?0.55:1,transition:"all .15s"}}>
+                                {isSel&&<div style={{position:"absolute",top:7,right:7,width:16,height:16,borderRadius:"50%",background:bc,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#fff",fontSize:8,fontWeight:700}}>✓</span></div>}
+                                <div style={{width:52,height:52,borderRadius:"50%",background:T.paperDeep,border:`2px solid ${bc}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:7,fontSize:18,overflow:"hidden"}}>
+                                  {["🧑🏾‍💼","👨🏽‍💼","👴🏻","👩🏻‍💼","👩🏻‍🎨"][AI_AGENTS.indexOf(a)]}
+                                </div>
+                                <div style={{fontFamily:display,fontSize:12,fontWeight:600,color:T.navy,marginBottom:1}}>{a.name.split(" ")[0]}</div>
+                                <div style={{fontFamily:body,fontSize:9.5,color:T.mutedDeep,fontStyle:"italic",marginBottom:6,lineHeight:1.3}}>{a.role}</div>
+                                <div style={{fontFamily:mono,fontSize:8,padding:"1px 5px",border:`1px solid ${bc}40`,color:a.color===T.moss?T.moss:T.brassDeep,background:`${bc}08`,marginBottom:6}}>{a.arch}</div>
+                                <div style={{width:"100%",height:4,background:T.paperDeep,border:`1px solid ${T.lineSoft}`,position:"relative",marginBottom:5}}>
+                                  <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${a.skill}%`,background:a.color===T.moss?T.moss:T.brass}}/>
+                                </div>
+                                <div style={{fontFamily:mono,fontSize:10,fontWeight:700,color:a.awareness>=30?T.brass:T.muted}}>{a.awareness}%</div>
+                                <div style={{fontFamily:body,fontSize:9,color:T.muted,fontStyle:"italic",marginBottom:5}}>situational awareness</div>
+                                {a.addonOnly
+                                  ?<div style={{fontFamily:mono,fontSize:9,color:T.muted,padding:"2px 7px",border:`1px dashed ${T.line}`,fontStyle:"italic"}}>Add-on after review</div>
+                                  :<div style={{fontFamily:mono,fontSize:10.5,color:a.costNum===0?T.moss:T.brassDeep,fontWeight:700,paddingTop:5,borderTop:`1px solid ${T.lineSoft}`,width:"100%",textAlign:"center"}}>{a.cost}</div>
+                                }
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Selected strip + generate */}
+                        <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative"}}>
+                          <Corners/>
+                          <div>
+                            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:5}}>Selected Analysts</div>
+                            {aiPickedAgents.length===0
+                              ?<div style={{fontFamily:body,fontSize:12,color:T.muted,fontStyle:"italic"}}>No analysts selected yet</div>
+                              :<div style={{display:"flex",gap:16,alignItems:"center"}}>
+                                {aiPickedAgents.map((id,i)=>{const a=AI_AGENTS.find(x=>x.id===id);return(<span key={id} style={{display:"flex",alignItems:"center",gap:6,fontFamily:body,fontSize:12,fontWeight:600,color:T.navy}}>{i>0&&<span style={{color:T.muted,fontFamily:mono,fontSize:10}}>+</span>}<span style={{fontSize:14}}>{"🧑🏾‍💼👨🏽‍💼👴🏻👩🏻‍💼"[AI_AGENTS.indexOf(a)]}</span>{a?.name.split(" ")[0]}<span style={{fontFamily:mono,fontSize:10,color:a?.costNum===0?T.moss:T.brassDeep}}>{a?.cost}</span></span>);})}
+                              </div>
+                            }
+                          </div>
+                          <div style={{textAlign:"right"}}>
+                            {aiPickedAgents.length>0&&<div style={{fontFamily:mono,fontSize:10,color:T.muted,marginBottom:8}}>Total cost: <strong style={{color:T.brassDeep}}>{totalCost===0?"Free":"$"+totalCost}</strong> · ~60 seconds</div>}
+                            <button onClick={runAiReview} disabled={aiPickedAgents.length===0} style={{background:aiPickedAgents.length===0?T.line:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:aiPickedAgents.length===0?T.muted:T.navy,padding:"11px 24px",fontFamily:display,fontSize:14,fontWeight:700,cursor:aiPickedAgents.length===0?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:8}}>
+                              <span>⚡</span> Generate Strategic Report
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div style={{fontSize:14,lineHeight:1.8,color:T.ink,width:"100%",overflowX:"hidden",fontFamily:body}} dangerouslySetInnerHTML={{__html:aiResult}}/>
-                      <div style={{marginTop:24,paddingTop:14,borderTop:`1px solid ${T.line}`,fontSize:11,color:T.muted,display:"flex",gap:14,flexWrap:"wrap",fontFamily:mono}}>
-                        <span>Generated by Claude AI</span><span>·</span>
-                        <span>{data.txCount.toLocaleString()} transactions · {fmtFull(data.totalSpend)} total spend</span>
+                    )}
+
+                    {/* STAGE 2: GENERATING */}
+                    {aiReviewStage===2&&(
+                      <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"18px 20px"}}>
+                        <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:14}}>Generating Your Reports…</div>
+                        <div style={{display:"grid",gridTemplateColumns:aiPickedAgents.length===2?"1fr 1fr":"1fr",gap:16}}>
+                          {aiPickedAgents.map(id=>{const a=AI_AGENTS.find(x=>x.id===id);return(
+                            <div key={id} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"20px",textAlign:"center"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,paddingBottom:12,borderBottom:`1px solid ${T.lineSoft}`}}>
+                                <span style={{fontSize:24}}>{"🧑🏾‍💼👨🏽‍💼👴🏻👩🏻‍💼"[AI_AGENTS.indexOf(a)]}</span>
+                                <div style={{textAlign:"left"}}>
+                                  <div style={{fontFamily:display,fontSize:14,fontWeight:600,color:T.navy}}>{a?.name}</div>
+                                  <div style={{fontFamily:body,fontSize:11,color:T.mutedDeep,fontStyle:"italic"}}>{a?.role}</div>
+                                </div>
+                              </div>
+                              <div style={{width:40,height:40,border:`3px solid ${T.brass}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 12px"}}/>
+                              <div style={{fontFamily:body,fontSize:12,color:T.muted,fontStyle:"italic"}}>Analyzing {data.txCount.toLocaleString()} transactions…</div>
+                              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                            </div>
+                          );})}
+                        </div>
+                        {aiReviewError&&<div style={{marginTop:14,background:`${T.flag}10`,border:`1px solid ${T.flag}40`,padding:"12px 16px",color:T.flag,fontSize:13}}>⚠ {aiReviewError} <button onClick={()=>setAiReviewStage(1)} style={{marginLeft:12,background:"transparent",border:`1px solid ${T.flag}`,color:T.flag,padding:"3px 10px",cursor:"pointer",fontFamily:body,fontSize:12}}>← Back</button></div>}
                       </div>
-                    </div>
-                  )}
-                  {!aiResult&&!aiLoading&&!aiError&&(
-                    <div style={{background:T.card,border:`1px dashed ${T.brass}44`,padding:"50px 40px",textAlign:"center",position:"relative"}}>
-                      <Corners/>
-                      <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:T.navy,marginBottom:8}}>Ready to generate your CPO briefing</div>
-                      <div style={{fontSize:13,color:T.muted,maxWidth:460,margin:"0 auto",lineHeight:1.6,marginBottom:16,fontFamily:body}}>Click <strong style={{color:T.brassDeep,fontFamily:display}}>Generate Executive Briefing</strong> above to have Claude AI analyze your {data.txCount.toLocaleString()} transactions.</div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center",fontSize:11,color:T.mutedDeep}}>
-                        {["~30 seconds to generate","~$0.02 per briefing","Board-ready PDF export"].map(t=>(
-                          <span key={t} style={{background:T.cardAlt,padding:"4px 12px",border:`1px solid ${T.line}`,fontFamily:mono}}>{t}</span>
-                        ))}
+                    )}
+
+                    {/* STAGE 3: RESULTS */}
+                    {aiReviewStage===3&&(
+                      <div>
+                        {/* Data context strip */}
+                        <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.card,padding:"11px 20px",marginBottom:16,display:"flex",alignItems:"center",gap:20,flexWrap:"wrap"}}>
+                          <div style={{fontFamily:mono,fontSize:9,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1.2}}>Analyzing</div>
+                          {[["File",fileName.replace(/\.csv$/i,"")],["Total Spend",fmtFull(data.totalSpend)],["Transactions",data.txCount.toLocaleString()],["Health Flags",data.flags.length],["Vendor HHI",vc?vc.hhi.toFixed(0):"—"]].map(([k,v])=>(
+                            <div key={k} style={{borderLeft:`1px solid rgba(255,255,255,.12)`,paddingLeft:16}}>
+                              <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1.2,marginBottom:2}}>{k}</div>
+                              <div style={{fontFamily:display,fontSize:14,fontWeight:600,color:T.card}}>{v}</div>
+                            </div>
+                          ))}
+                          <div style={{flex:1}}/>
+                          <button onClick={()=>{setAiReviewStage(1);setAiPickedAgents([]);setAiResults({});setAiChristySelected(false);}} style={{background:"transparent",border:`1px solid rgba(248,242,226,.3)`,color:"#b8c5d8",padding:"5px 12px",fontFamily:body,fontSize:11,cursor:"pointer"}}>← New Report</button>
+                        </div>
+
+                        {/* Side by side reports */}
+                        <div style={{display:"grid",gridTemplateColumns:aiPickedAgents.length===2?"1fr 1fr":"1fr",gap:16,marginBottom:16}}>
+                          {aiPickedAgents.map(id=>{
+                            const a=AI_AGENTS.find(x=>x.id===id);
+                            const text=aiResults[id]||"";
+                            return(
+                              <div key={id} style={{display:"flex",flexDirection:"column"}}>
+                                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:T.cardAlt,border:`1px solid ${a?.color===T.moss?T.moss:T.line}`,borderBottom:"none"}}>
+                                  <span style={{fontSize:20}}>{"🧑🏾‍💼👨🏽‍💼👴🏻👩🏻‍💼"[AI_AGENTS.indexOf(a)]}</span>
+                                  <div>
+                                    <div style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.navy}}>{a?.name}</div>
+                                    <div style={{fontFamily:mono,fontSize:9,color:T.muted}}>{a?.arch} · {a?.awareness}% awareness</div>
+                                  </div>
+                                  <div style={{marginLeft:"auto",fontFamily:mono,fontSize:10,color:a?.costNum===0?T.moss:T.brassDeep,fontWeight:700}}>{a?.cost}</div>
+                                </div>
+                                <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"18px 20px",flex:1,fontSize:13,lineHeight:1.8,color:T.mutedDeep,fontFamily:body,whiteSpace:"pre-wrap"}}>{text}</div>
+                                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:T.cardAlt,border:`1px solid ${T.line}`,borderTop:`2px solid ${T.brass}`}}>
+                                  <div style={{fontFamily:body,fontSize:11,color:T.muted,fontStyle:"italic"}}>{a?.arch.includes("RAG")?"RAG-grounded · jurisdiction-specific":"Generic LLM analysis"}</div>
+                                  <button onClick={()=>{
+                                    const pw=window.open("","_blank","width=900,height=700");
+                                    pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${a?.name} — ${fileName}</title><style>body{font-family:Georgia,serif;color:#28221a;max-width:780px;margin:40px auto;padding:0 24px;line-height:1.8}h1{font-size:20px;color:#12243c}p{margin:0 0 12px}@media print{body{font-size:12px}}</style></head><body><h1>${a?.name} — Procurement Report</h1><p><em>${fileName} · ${new Date().toLocaleDateString()}</em></p><hr/><div>${text.replace(/\n/g,"<br/>")}</div></body></html>`);
+                                    pw.document.close(); setTimeout(()=>{pw.print();pw.close();},400);
+                                  }} style={{background:T.card,border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"6px 14px",cursor:"pointer",fontFamily:body,fontSize:11,fontWeight:600}}>⬇ Print / Download</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Delta panel — only when 2 agents */}
+                        {showDelta&&(()=>{
+                          return(
+                            <div style={{background:T.card,border:`1px solid ${T.line}`,marginBottom:16,position:"relative"}}>
+                              <Corners/>
+                              <div style={{padding:"12px 18px",borderBottom:`1px solid ${T.lineSoft}`,display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
+                                <div>
+                                  <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:3}}>Report Comparison</div>
+                                  <div style={{fontFamily:display,fontSize:14,fontWeight:600,color:T.navy}}>How the two reports differ</div>
+                                </div>
+                                <div style={{fontFamily:body,fontSize:11,color:T.muted,fontStyle:"italic"}}>Quality metrics only — prompt details available in Test My Team</div>
+                              </div>
+                              <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",padding:"14px 18px",gap:0,borderBottom:`1px solid ${T.lineSoft}`}}>
+                                {SBAR.map(([label,v1,v2],i)=>{
+                                  const diff=(v2||0)-(v1||0);
+                                  const isHedge=label==="Hedges";
+                                  const diffColor=isHedge?(diff<0?T.moss:diff>0?T.flag:T.muted):(diff>0?T.moss:diff<0?T.flag:T.muted);
+                                  const diffLabel=isHedge?(diff<0?`−${Math.abs(diff)} better`:diff>0?`+${diff} more`:"Same"):(diff>0?`+${diff} ${a2?.name.split(" ")[0]}`:diff<0?`+${Math.abs(diff)} ${a1?.name.split(" ")[0]}`:"Same");
+                                  return(
+                                    <div key={label} style={{padding:`0 ${i>0?"14px":"0"} 0 ${i>0?"14px":"0"}`,borderRight:i<5?`1px solid ${T.lineSoft}`:"none"}}>
+                                      <div style={{fontFamily:mono,fontSize:8.5,color:T.muted,textTransform:"uppercase",letterSpacing:1,fontWeight:600,marginBottom:8}}>{label}</div>
+                                      <div style={{fontFamily:mono,fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>{v1||0} <span style={{fontSize:10,color:T.muted}}>({a1?.name.split(" ")[0]})</span></div>
+                                      <div style={{fontFamily:mono,fontSize:13,fontWeight:700,color:T.ink,marginBottom:4}}>{v2||0} <span style={{fontSize:10,color:T.muted}}>({a2?.name.split(" ")[0]})</span></div>
+                                      <div style={{fontFamily:mono,fontSize:10,fontWeight:700,color:diffColor}}>{diffLabel}</div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div style={{padding:"12px 18px",background:T.cardAlt,display:"flex",alignItems:"center",gap:12}}>
+                                <div style={{width:8,height:8,borderRadius:"50%",background:T.moss,flexShrink:0}}/>
+                                <div style={{fontFamily:body,fontSize:12,color:T.mutedDeep,flex:1}}>
+                                  Full quality rubric and prompt visibility available in <strong style={{color:T.navy}}>Test My Team</strong>.
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Christy upsell — after results */}
+                        <div style={{background:T.navy,border:`2px solid ${T.brass}`,padding:"18px 22px",display:"flex",alignItems:"center",gap:18,flexWrap:"wrap"}}>
+                          <span style={{fontSize:28}}>👩🏻‍🎨</span>
+                          <div style={{flex:1,minWidth:200}}>
+                            <div style={{fontFamily:mono,fontSize:8.5,color:"#8fa3bf",letterSpacing:1.2,marginBottom:2}}>MK-05 · MARKETING DESIGNER</div>
+                            <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.card,marginBottom:3}}>Christy Park</div>
+                            <div style={{fontFamily:body,fontSize:12,color:"#b8c5d8",fontStyle:"italic",marginBottom:8}}>"Package an Executive &amp; Legislative Presentation."</div>
+                            <div style={{display:"flex",gap:16,alignItems:"center",flexWrap:"wrap"}}>
+                              {[["Situational Awareness","5%"],["Skill","Developing · 36"],["Architecture","LLM Format"],["Add-on Cost","+$141"]].map(([k,v])=>(
+                                <div key={k}>
+                                  <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{k}</div>
+                                  <div style={{fontFamily:display,fontSize:13,fontWeight:600,color:v==="+$141"?T.brassLight:T.card}}>{v}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",gap:8,flexShrink:0}}>
+                            <button style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"10px 20px",fontFamily:display,fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>Add Christy + Generate Presentation</button>
+                            <button onClick={()=>{
+                              const id=aiPickedAgents[0];
+                              const text=aiResults[id]||"";
+                              const a=AI_AGENTS.find(x=>x.id===id);
+                              const pw=window.open("","_blank","width=900,height=700");
+                              pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Report — ${fileName}</title><style>body{font-family:Georgia,serif;color:#28221a;max-width:780px;margin:40px auto;padding:0 24px;line-height:1.8}h1{font-size:20px;color:#12243c}p{margin:0 0 12px}@media print{body{font-size:12px}}</style></head><body><h1>Procurement Strategic Report</h1><p><em>${fileName} · ${new Date().toLocaleDateString()}</em></p><hr/><div>${text.replace(/\n/g,"<br/>")}</div></body></html>`);
+                              pw.document.close(); setTimeout(()=>{pw.print();pw.close();},400);
+                            }} style={{background:"transparent",border:`1px solid rgba(248,242,226,.35)`,color:T.card,padding:"10px 20px",fontFamily:body,fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>⬇ Print / Download as-is</button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* ── UPDATE FILE ── */}
               {activeTab==="updatefile"&&stage==="map"&&null}

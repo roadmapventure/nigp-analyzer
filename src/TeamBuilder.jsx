@@ -1262,7 +1262,10 @@ export default function TeamBuilder(){
         <div style={{flex:1}}/>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {screen!=="roster"&&(
-            <button onClick={()=>{setScreen("roster");setActiveAgent(null);}} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>← Team Builder</button>
+            <button onClick={()=>{
+              if(screen==="test"&&testFilterAgent){setScreen("personnel");}
+              else{setScreen("roster");setActiveAgent(null);}
+            }} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>← {screen==="test"&&testFilterAgent?"Personnel File":"Team Builder"}</button>
           )}
           <button onClick={()=>window.close?window.close():window.history.back()} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>← Back to Dashboard</button>
           <button style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",fontSize:12,fontFamily:body,cursor:"pointer"}}>? Help</button>
