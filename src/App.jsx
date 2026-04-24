@@ -359,7 +359,7 @@ export default function NIGPAnalyzer() {
       setAiReviewStage(3);
     }catch(err){
       setAiReviewError("Generation failed: "+err.message);
-      setAiReviewStage(1);
+      setAiReviewStage(2); // stay on generating screen so error is visible
     }
   };
 

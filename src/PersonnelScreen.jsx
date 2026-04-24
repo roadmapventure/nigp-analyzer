@@ -660,7 +660,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
         ))}
         <div style={{flex:1}}/>
         <button onClick={()=>setSubView("test")} style={{background:"transparent",border:`1px solid ${T.brassLight}`,color:T.brassLight,padding:"6px 14px",fontFamily:body,fontSize:12,fontWeight:600,cursor:"pointer",marginRight:7}}>🐝 Test Agent</button>
-        {agent.trainable && <button onClick={()=>setSubView("teach")} style={{background:T.brass,border:"none",color:T.navy,padding:"6px 14px",fontFamily:body,fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Training</button>}
+        {agent.trainable && <button onClick={()=>setSubView("teach")} style={{background:T.brass,border:"none",color:T.navy,padding:"6px 14px",fontFamily:body,fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Add Courses</button>}
       </div>
       <div style={{background:T.cardAlt,border:`1px dashed ${T.lineSoft}`,padding:"9px 13px"}}>
         <div style={{fontFamily:mono,fontSize:8.5,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:3}}>How Background Knowledge Works · Layer 02</div>
@@ -675,7 +675,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
         {!entriesLoading && agentEntries.length===0 && (
           <div style={{padding:"28px",textAlign:"center"}}>
             <div style={{fontFamily:display,fontSize:15,color:T.muted,marginBottom:6}}>No training documents yet</div>
-            {agent.trainable && <div style={{fontFamily:body,fontSize:12,color:T.mutedDeep,fontStyle:"italic"}}>Use "Add Training" to start building {agent.name.split(" ")[0]}'s knowledge base.</div>}
+            {agent.trainable && <div style={{fontFamily:body,fontSize:12,color:T.mutedDeep,fontStyle:"italic"}}>Use "Add Courses" to start building {agent.name.split(" ")[0]}'s knowledge base.</div>}
           </div>
         )}
         {agentEntries.map((entry,i)=>{
@@ -831,7 +831,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:13,borderTop:`1px solid ${T.lineSoft}`}}>
               <button onClick={()=>setSubView("list")} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"8px 18px",fontFamily:body,fontSize:12,cursor:"pointer"}}>Cancel</button>
               <button onClick={handleSave} disabled={!form.title||isSaving||locked} style={{background:!form.title||locked?T.line:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:!form.title||locked?T.muted:T.navy,padding:"9px 22px",fontFamily:display,fontSize:13,fontWeight:700,cursor:!form.title||locked?"not-allowed":"pointer",opacity:isSaving?.7:1}}>
-                {isSaving?"⏳ Saving…":`▸ Teach ${agent.name.split(" ")[0]} this document`}
+                {isSaving?"⏳ Saving…":`▸ Teach ${agent.name.split(" ")[0]} this course`}
               </button>
             </div>
           </div>
@@ -993,7 +993,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
 
           <div style={{display:"flex",gap:10,marginTop:14,justifyContent:"space-between",alignItems:"center"}}>
             <button onClick={()=>{setTestStage(2);setRunState("idle");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"7px 16px",fontFamily:body,fontSize:12,cursor:"pointer"}}>← Back to Scenarios</button>
-            {agent.trainable&&<button onClick={()=>setSubView("teach")} style={{background:T.moss,border:"none",color:"#fff",padding:"7px 18px",fontFamily:display,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Add Training →</button>}
+            {agent.trainable&&<button onClick={()=>setSubView("teach")} style={{background:T.moss,border:"none",color:"#fff",padding:"7px 18px",fontFamily:display,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Add Courses →</button>}
           </div>
         </div>
       )}
@@ -1157,6 +1157,7 @@ function ProjectsTab({ agent }) {
 export default function PersonnelScreen({ agent, entries, entriesLoading, onBack, onEditEntry, onDeleteEntry, showToast }) {
   const [activeTab, setActiveTab] = useState("profile");
   const [trainingSubView, setTrainingSubView] = useState("list");
+  const [trainingResetKey, setTrainingResetKey] = useState(0);
 
   // Sync subView label to page header
   const handleTrainingSubView = useCallback((sv) => setTrainingSubView(sv), []);
@@ -1165,7 +1166,7 @@ export default function PersonnelScreen({ agent, entries, entriesLoading, onBack
     switch(activeTab) {
       case "profile":  return <ProfileTab agent={agent}/>;
       case "resume":   return <ResumeTab agent={agent} showToast={showToast}/>;
-      case "training": return <TrainingTabWithSubViewSync agent={agent} entries={entries} entriesLoading={entriesLoading} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} showToast={showToast} onSubViewChange={handleTrainingSubView}/>;
+      case "training": return <TrainingTabWithSubViewSync key={trainingResetKey} agent={agent} entries={entries} entriesLoading={entriesLoading} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} showToast={showToast} onSubViewChange={handleTrainingSubView}/>;
       case "playbook": return <PlaybookTab agent={agent} showToast={showToast}/>;
       case "workflow": return <WorkflowTab/>;
       case "projects": return <ProjectsTab agent={agent}/>;
@@ -1193,7 +1194,7 @@ export default function PersonnelScreen({ agent, entries, entriesLoading, onBack
               {group.tabs.map(t=>{
                 const isActive = activeTab===t.id;
                 return(
-                  <button key={t.id} onClick={()=>{ setActiveTab(t.id); if(t.id==="training") setTrainingSubView("list"); }}
+                  <button key={t.id} onClick={()=>{ setActiveTab(t.id); if(t.id==="training"){ setTrainingSubView("list"); setTrainingResetKey(k=>k+1); } }}
                     style={{width:"100%",textAlign:"left",padding:"7px 15px 7px 19px",fontSize:12.5,fontWeight:isActive?600:400,cursor:"pointer",border:"none",fontFamily:body,background:isActive?T.card:"transparent",color:isActive?T.navy:T.mutedDeep,borderLeft:isActive?`3px solid ${T.brass}`:"3px solid transparent",transition:"all 0.15s",display:"flex",alignItems:"center",gap:6}}>
                     <span style={{fontSize:10,opacity:.7}}>{t.icon}</span>
                     <span style={{flex:1}}>{t.label}</span>
