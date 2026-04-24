@@ -1,92 +1,183 @@
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+// api/brief.js
+// Generates AI briefing with full 5-layer prompt assembly:
+//   Layer 01 - Role & Behavior  (agent_configs: role_prompt, is_default or override)
+//   Layer 02 - Background (RAG) (fetched via rag-query, passed in ragContext)
+//   Layer 03 - Analysis Payload (passed in from client as messages[0].content)
+//   Layer 04 - Output Structure (agent_configs: output_format, is_default or override)
+//   Layer 05 - Guardrails       (agent_configs: guardrail)
 
-  if (req.method === "OPTIONS") return res.status(204).end();
+import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// Fetch a single config row — by override id, or by default flag
+async function fetchConfig(agent_id, type, overrideId = null, tenant_id = "global") {
+  if (overrideId) {
+    const { data } = await supabase
+      .from("agent_configs")
+      .select("text, name")
+      .eq("id", overrideId)
+      .eq("tenant_id", tenant_id)
+      .single();
+    return data;
+  }
+
+  const { data } = await supabase
+    .from("agent_configs")
+    .select("text, name")
+    .eq("tenant_id", tenant_id)
+    .eq("agent_id", agent_id)
+    .eq("type", type)
+    .eq("is_default", true)
+    .single();
+
+  return data;
+}
+
+// Fallback system prompts when no agent_configs row exists
+const FALLBACK_ROLE = {
+  chloe:  "You are Chloe Okafor, a junior government procurement analyst. Identify obvious spend patterns and flag clear anomalies. Keep analysis concise and direct.",
+  mike:   "You are Mike Alvarez, a senior government procurement analyst with expertise in industry best practices. Provide detailed analysis grounded in procurement standards.",
+  bob:    "You are Bob Whitfield, a professional government procurement analyst specializing in legal and compliance audits. Cite relevant statutes and standards. Write for Chief Procurement Officers.",
+  robyn:  "You are Robyn Castellanos, an expert NIGP consultant and procurement strategist. Provide strategic, forward-looking analysis grounded in NIGP best practices.",
+  christy:"You are Christy Park, a marketing designer. Format the provided analysis as a polished executive presentation with clear visual hierarchy.",
+};
+
+const FALLBACK_FORMAT = `Return a structured executive briefing with the following sections:
+1. Executive Summary (3-4 sentences, board-ready tone)
+2. Top Risk Findings (specific dollar amounts, vendor names where relevant)
+3. Compliance Flags (cite statute or standard where known)
+4. Recommended Actions (numbered, assign ownership)
+
+Use formal government procurement language. Write in flowing paragraphs, not bullet points. Format as clean HTML using only: <h2>, <h3>, <p>, <strong>. Do not add layout or page-level styles.`;
+
+const FALLBACK_GUARDRAIL = `NEVER:
+- Name a vendor as fraudulent or non-compliant without documented evidence
+- Provide legal conclusions — flag concerns and recommend legal review
+- Extrapolate beyond the data provided
+- Reference thresholds from jurisdictions other than the one configured
+- Recommend sole-source awards without citing a specific statutory exception
+
+ALWAYS:
+- Cite the specific NIGP class when referencing commodity risk
+- Flag when analysis confidence is low due to data gaps
+- Attribute dollar amounts to specific vendors or categories where the data supports it`;
+
+export default async function handler(req, res) {
+  const allowedOrigin = process.env.ALLOWED_ORIGIN || "*";
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+  res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "API key not configured" });
-
-  // ── Agent-specific system prompts ────────────────────────────────────────────
-  // Each agent has a persona that shapes how they write their briefing.
-  // These are injected when agent_id is passed from the frontend.
-  const AGENT_PROMPTS = {
-    robyn: `You are Robyn Castellanos, a senior NIGP-certified procurement consultant with 10 years of government procurement experience. Your specialty is NIGP best practice and forward-looking procurement strategy. Write in a direct, authoritative tone grounded in NIGP methodology, Texas procurement law, and NASPO cooperative purchasing standards. Cite specific statutes and frameworks by name. Write in flowing paragraphs like a strategy memo — no bullet points.`,
-    bob:   `You are Bob Whitfield, a professional procurement analyst specializing in legal compliance and internal audit readiness. Your focus is identifying legal exposure and audit defensibility in government procurement. Write with a compliance-first perspective grounded in your jurisdiction's legal framework. Be precise about dollar thresholds and statutory requirements. Write in flowing paragraphs — no bullet points.`,
-    mike:  `You are Mike Alvarez, a senior procurement analyst specializing in industry benchmarking. Your specialty is comparing agency spend patterns against government procurement industry norms. Identify where the agency is above or below typical performance benchmarks. Write in flowing paragraphs — no bullet points.`,
-    chloe: `You are Chloe Okafor, a junior procurement analyst. Provide a clear, straightforward summary of the most obvious procurement patterns and concerns. Keep language accessible and actionable. Write in flowing paragraphs — no bullet points.`,
-    christy: `You are Christy Park, a marketing designer specializing in executive presentation. Take the provided procurement analysis and reformat it for a board-ready executive and legislative audience. Use clear, compelling language. Organize for maximum executive impact — no bullet points, flowing paragraphs with strong section headers.`,
-  };
-
   try {
-    const { system, messages, ragContext, agent_id } = req.body;
+    const {
+      messages,
+      system,            // legacy direct system override (AI Briefing tab)
+      agent_id,
+      tenant_id = "global",
+      role_prompt_id,    // optional session override from client
+      output_format_id,  // optional session override from client
+      ragContext,        // { queryText, jurisdiction, triggers } — handled by this endpoint
+      max_tokens = 6000,
+    } = req.body;
 
-    // ── Fetch RAG context if available ───────────────────────────────────────
-    let knowledgeContext = "";
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "messages array required" });
+    }
 
-    if (ragContext?.queryText && process.env.SUPABASE_URL && process.env.OPENAI_API_KEY) {
+    // ── Legacy path: system prompt passed directly (AI Briefing tab, no agent_id) ──
+    if (!agent_id || system) {
+      const finalSystem = system || "You are a senior government procurement analyst.";
+      const response = await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens,
+        system: finalSystem,
+        messages,
+      });
+      return res.status(200).json(response);
+    }
+
+    // ── New path: assemble 5-layer prompt from agent_configs ──────────────────
+
+    // Layer 01 — Role & Behavior
+    const roleConfig = await fetchConfig(agent_id, "role_prompt", role_prompt_id, tenant_id);
+    const layer01 = roleConfig?.text || FALLBACK_ROLE[agent_id] || FALLBACK_ROLE.mike;
+
+    // Layer 02 — Background (RAG context)
+    let layer02 = "";
+    if (ragContext?.queryText) {
       try {
-        const ragRes = await fetch(
-          `${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "http://localhost:3000"}/api/rag-query`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              queryText:    ragContext.queryText,
-              jurisdiction: ragContext.jurisdiction || null,
-              triggers:     ragContext.triggers     || [],
-              matchCount:   5,
-              agent_id:     agent_id || null,  // v3: scope RAG to this agent
-            }),
-          }
-        );
-
-        if (ragRes.ok) {
-          const ragData = await ragRes.json();
-          if (ragData.context) knowledgeContext = ragData.context;
-        }
+        const ragRes = await fetch(`${process.env.VERCEL_URL ? "https://"+process.env.VERCEL_URL : "http://localhost:3000"}/api/rag-query`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            queryText: ragContext.queryText,
+            jurisdiction: ragContext.jurisdiction || "All",
+            matchCount: 5,
+            tenant_id,
+            agent_id,
+            triggers: ragContext.triggers || [],
+          }),
+        });
+        const ragJson = await ragRes.json();
+        if (ragJson.context) layer02 = ragJson.context;
       } catch (ragErr) {
-        console.error("RAG query failed (non-fatal):", ragErr.message);
+        console.warn("[brief] RAG query failed, continuing without context:", ragErr.message);
       }
     }
 
-    // ── Build system prompt ───────────────────────────────────────────────────
-    // Priority: agent persona > passed system > base
-    const agentPrompt = agent_id && AGENT_PROMPTS[agent_id] ? AGENT_PROMPTS[agent_id] : "";
-    const baseSystem  = system || "";
-    const promptCore  = agentPrompt || baseSystem;
+    // Layer 04 — Output Structure
+    const formatConfig = await fetchConfig(agent_id, "output_format", output_format_id, tenant_id);
+    const layer04 = formatConfig?.text || FALLBACK_FORMAT;
 
-    const enrichedSystem = knowledgeContext
-      ? `${knowledgeContext}\n\n---\n\n${promptCore}`
-      : promptCore;
+    // Layer 05 — Guardrails
+    const guardrailConfig = await fetchConfig(agent_id, "guardrail", null, tenant_id);
+    const layer05 = guardrailConfig?.text || FALLBACK_GUARDRAIL;
 
-    // ── Call Claude ───────────────────────────────────────────────────────────
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model:      "claude-haiku-4-5-20251001",
-        max_tokens: 6000,
-        system:     enrichedSystem,
-        messages:   messages || [],
-      }),
-    });
+    // ── Assemble full system prompt ───────────────────────────────────────────
+    const parts = [];
 
-    const text = await response.text();
-    try {
-      const data = JSON.parse(text);
-      return res.status(response.status).json(data);
-    } catch {
-      return res.status(500).json({ error: "Anthropic returned: " + text.slice(0, 200) });
+    parts.push(`=== ROLE & IDENTITY ===\n${layer01}`);
+
+    if (layer02) {
+      parts.push(`=== BACKGROUND KNOWLEDGE (Retrieved for this analysis) ===\n${layer02}`);
     }
 
+    parts.push(`=== OUTPUT FORMAT ===\n${layer04}`);
+    parts.push(`=== CONSTRAINTS & GUARDRAILS ===\n${layer05}`);
+
+    const assembledSystem = parts.join("\n\n---\n\n");
+
+    // ── Call Anthropic ────────────────────────────────────────────────────────
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens,
+      system: assembledSystem,
+      messages,
+    });
+
+    // Include which configs were used (useful for test console display)
+    return res.status(200).json({
+      ...response,
+      _debug: {
+        agent_id,
+        role_name: roleConfig?.name || "fallback",
+        format_name: formatConfig?.name || "fallback",
+        guardrail_name: guardrailConfig?.name || "fallback",
+        rag_retrieved: !!layer02,
+        layers_assembled: layer02 ? 5 : 4,
+      },
+    });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("[brief]", err);
+    return res.status(500).json({ error: err.message || "Internal server error" });
   }
 }
