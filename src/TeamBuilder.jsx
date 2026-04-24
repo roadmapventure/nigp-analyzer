@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import PersonnelScreen from "./PersonnelScreen";
 
 // ── Treasury Design Tokens ─────────────────────────────────────────────────────
 const T = {
@@ -402,202 +403,9 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SCREEN 2: PERSONNEL FILE
+// PersonnelScreen is now imported from ./PersonnelScreen.jsx
+// See src/PersonnelScreen.jsx for the full tabbed implementation.
 // ══════════════════════════════════════════════════════════════════════════════
-function PersonnelScreen({agent,entries,entriesLoading,onBack,onAddTraining,onTestAgent,onEditEntry,onDeleteEntry,showToast}){
-  const agentEntries=entries.filter(e=>e.agent_id===agent.id||e.agent_id==="legacy"&&agent.id==="robyn");
-  const pro=AGENT_PRONOUNS[agent.id]||{subject:"they",object:"them",possessive:"their"};
-  const firstName=agent.name.split(" ")[0];
-
-  return(
-    <div style={{flex:1,overflowY:"auto",padding:"24px 28px 48px",background:T.paperDeep}}>
-      {/* Eyebrow */}
-      <div style={{fontFamily:mono,fontSize:9.5,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:4}}>Personnel File · {agent.code} · {agent.trainer} Bench</div>
-      <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:3}}>
-        <div style={{fontFamily:display,fontSize:28,fontWeight:500,color:T.navy,letterSpacing:"-.5px"}}>The personnel file of {agent.name}.</div>
-        <div style={{display:"flex",gap:22,alignItems:"baseline"}}>
-          {agent.trainable&&<span onClick={()=>onAddTraining(agent)} style={{fontFamily:body,fontSize:13,color:T.brassDeep,cursor:"pointer",fontWeight:500}} className="page-nav-link">Add Training</span>}
-          <span onClick={()=>onTestAgent(agent)} style={{fontFamily:body,fontSize:13,color:T.brassDeep,cursor:"pointer",fontWeight:500}} className="page-nav-link">Test This Agent</span>
-          <span style={{fontFamily:body,fontSize:13,color:T.brassDeep,cursor:"pointer",fontWeight:500}} className="page-nav-link">Workflows →</span>
-        </div>
-      </div>
-      <div style={{fontFamily:body,fontStyle:"italic",fontSize:13,color:T.mutedDeep,marginBottom:16}}>Tenure · {agent.hiredOn} · {skillLabel(agent.skill)}-level analyst</div>
-      <div style={{height:2,background:T.brass,marginBottom:20}}/>
-
-      <div style={{display:"grid",gridTemplateColumns:"252px 1fr 300px",gap:20,alignItems:"start"}}>
-
-        {/* LEFT: ID Badge + Vitals + Skill Ladder */}
-        <div>
-          {/* ID Badge */}
-          <div style={{background:T.card,border:`1px solid ${T.line}`,position:"relative",padding:"18px 16px 14px",textAlign:"center",marginBottom:14}}>
-            <Corners/>
-            <div style={{fontFamily:mono,fontSize:8,color:T.brassDeep,textTransform:"uppercase",letterSpacing:2,fontWeight:600,marginBottom:12}}>Bureau of Procurement Intelligence</div>
-            <AgentAvatar who={agent.id} size={100} ring={true}/>
-            <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:T.navy,marginTop:10,lineHeight:1.1}}>{agent.name}</div>
-            <div style={{fontFamily:body,fontSize:11.5,color:T.mutedDeep,marginTop:3,fontStyle:"italic"}}>{agent.role}</div>
-            <div style={{display:"flex",justifyContent:"center",gap:6,marginTop:10,flexWrap:"wrap"}}>
-              <span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.muted}12`,color:T.mutedDeep,border:`1px solid ${T.line}`}}>{agent.code}</span>
-              <span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.moss}12`,color:T.moss,border:`1px solid ${T.moss}`}}>● ACTIVE</span>
-              <span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",color:T.muted}}>{agent.hiredOn.split(" ")[1]||"2024"}</span>
-            </div>
-            {agent.trainable&&<div style={{marginTop:10}}><span style={{fontFamily:mono,fontSize:9.5,padding:"2px 10px",background:`${agent.color===T.moss?T.moss:T.brass}15`,color:agent.color===T.moss?T.moss:T.brassDeep,border:`1px solid ${agent.color===T.moss?T.moss:T.brass}40`,letterSpacing:.5}}>{agent.trainable&&agent.trainer!=="NIGP"?"● YOUR TRAINEE":"● NIGP MANAGED"}</span></div>}
-          </div>
-          {/* Vitals */}
-          <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"14px 16px",marginBottom:14}}>
-            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:10}}>Resume</div>
-            {[["Architecture",agent.arch],["Specialty",agent.specialty],["Trainer",agent.trainer],["Update Cadence","Quarterly"],["Update Rights",`${agent.trainer} admin`],["Visibility","Configurable"]].map(([k,v])=>(
-              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${T.lineSoft}`,fontSize:11}}>
-                <span style={{color:T.muted,fontWeight:500}}>{k}</span>
-                <span style={{fontFamily:mono,fontSize:10.5,color:T.ink,textAlign:"right",maxWidth:140}}>{v}</span>
-              </div>
-            ))}
-          </div>
-          {/* Skill Ladder */}
-          <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"14px 16px"}}>
-            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:10}}>Skill Ladder</div>
-            {[["Trainee","0–30",false],["Developing","30–55",false],["Proficient","55–75",false],["▸ Expert","75–90",agent.skill>=75&&agent.skill<90],["Principal","90–100",agent.skill>=90]].map(([label,range,active])=>(
-              <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"5px 8px",marginBottom:3,background:active?`${T.brass}18`:"transparent",border:active?`1px solid ${T.brass}40`:"1px solid transparent"}}>
-                <span style={{fontFamily:body,fontSize:11.5,fontWeight:active?700:400,color:active?T.brassDeep:T.mutedDeep}}>{label}</span>
-                <span style={{fontFamily:mono,fontSize:10.5,color:active?T.brassDeep:T.muted}}>{range}</span>
-              </div>
-            ))}
-            {agent.trainable&&<div style={{marginTop:10,padding:"8px 10px",background:`${T.moss}10`,border:`1px solid ${T.moss}30`,fontFamily:body,fontSize:11,color:T.moss,lineHeight:1.4}}>+2 more documents to promote to Principal.</div>}
-          </div>
-        </div>
-
-        {/* MIDDLE: Growth + Training Courses */}
-        <div>
-          {/* Growth strip */}
-          <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.card,padding:"16px 20px",marginBottom:14}}>
-            <div style={{fontFamily:mono,fontSize:8.5,color:T.brassLight,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:10}}>The more {firstName} learns, the deeper {pro.possessive} analysis reporting.</div>
-            <div style={{display:"flex",gap:20,marginBottom:12,flexWrap:"wrap"}}>
-              {[["Documents",agent.docs],["Class Hours",agent.classes],["Chunks",agent.chunks],["Tokens",agent.chunks>0?(agent.chunks*740/1000).toFixed(2)+"M":"0"]].map(([k,v])=>(
-                <div key={k}>
-                  <div style={{fontFamily:body,fontSize:8,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1.2,fontWeight:600,marginBottom:2}}>{k}</div>
-                  <div style={{fontFamily:display,fontSize:22,fontWeight:600,color:T.card,fontVariantNumeric:"tabular-nums"}}>{v||"0"}</div>
-                </div>
-              ))}
-              <div>
-                <div style={{fontFamily:body,fontSize:8,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1.2,fontWeight:600,marginBottom:2}}>Skill</div>
-                <div style={{fontFamily:display,fontSize:28,fontWeight:700,color:T.brassLight,lineHeight:1}}>{agent.skill}/100 <span style={{fontSize:12,color:"#8fa3bf",fontFamily:mono}}>{skillLabel(agent.skill)}</span></div>
-              </div>
-            </div>
-            <svg width="100%" height="48" viewBox="0 0 860 48" preserveAspectRatio="none">
-              <path d="M 0 42 C 150 40 300 36 440 28 C 580 20 700 10 860 4" fill="none" stroke={T.brass} strokeWidth="2" opacity="0.7"/>
-              <path d="M 0 42 C 150 40 300 36 440 28 C 580 20 700 10 860 4 L 860 48 L 0 48 Z" fill="rgba(182,135,58,0.15)"/>
-            </svg>
-          </div>
-
-          {/* Training Courses */}
-          <div style={{background:T.card,border:`1px solid ${T.line}`}}>
-            <div style={{padding:"14px 16px",borderBottom:`1px solid ${T.line}`,display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
-              <div>
-                <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:4}}>Exhibit I · Training Courses</div>
-                <div style={{fontFamily:display,fontSize:17,fontWeight:600,color:T.navy}}>Every document {agent.name.split(" ")[0]} has learned</div>
-              </div>
-              <div style={{fontFamily:mono,fontSize:10,color:T.muted,display:"flex",gap:14}}>
-                <span>{agent.docs} docs</span><span>{agent.classes} class hrs</span>
-              </div>
-            </div>
-
-            {entriesLoading&&(
-              <div style={{padding:"32px 20px",textAlign:"center",fontFamily:body,fontSize:13,color:T.muted,fontStyle:"italic"}}>Loading training courses…</div>
-            )}
-
-            {!entriesLoading&&agentEntries.length===0&&(
-              <div style={{padding:"32px 20px",textAlign:"center"}}>
-                <div style={{fontFamily:display,fontSize:15,color:T.muted,marginBottom:6}}>No training documents yet</div>
-                {agent.trainable&&<div style={{fontFamily:body,fontSize:12,color:T.mutedDeep,fontStyle:"italic"}}>Use "Add Training" to start building {agent.name.split(" ")[0]}'s knowledge base.</div>}
-              </div>
-            )}
-
-            {agentEntries.map((entry,i)=>{
-              const catColors={Compliance:T.brass,Jurisdiction:T.navy,Standards:T.brass,Methodology:T.navy,"Best Practice":T.moss,Internal:T.muted,Playbook:T.flag,Template:T.moss,Statute:T.navy,Retired:T.muted};
-              const catColor=catColors[entry.category]||T.muted;
-              const isRetired=entry.status==="disabled";
-              return(
-                <div key={entry.id} style={{display:"grid",gridTemplateColumns:"60px 1fr",borderBottom:i<agentEntries.length-1?`1px solid ${T.lineSoft}`:"none"}}>
-                  <div style={{padding:"13px 10px",textAlign:"right",borderRight:`1px solid ${T.lineSoft}`}}>
-                    <div style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.navy}}>{new Date(entry.source||Date.now()).getDate?entry.source?.split(" ")[1]||"—":"—"}</div>
-                    <div style={{fontFamily:mono,fontSize:9,color:T.muted,marginTop:1}}>{entry.source?.split(" ")[2]||""}</div>
-                    <div style={{width:10,height:10,borderRadius:"50%",background:isRetired?T.muted:T.line,border:`2px solid ${T.card}`,margin:"6px auto 0",boxShadow:`0 0 0 2px ${isRetired?T.muted:T.line}`}}/>
-                  </div>
-                  <div style={{padding:"12px 14px",background:isRetired?`${T.muted}05`:"transparent"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:5,flexWrap:"wrap"}}>
-                      <span style={{fontFamily:mono,fontSize:9,padding:"1px 6px",border:`1px solid ${catColor}40`,color:catColor,background:`${catColor}12`,fontWeight:600,letterSpacing:.5}}>{(entry.category||"").toUpperCase()}</span>
-                      <span style={{fontFamily:mono,fontSize:9,color:T.muted}}>▸ Added {entry.source?.split(", ")[0]||""}</span>
-                      {!isRetired&&<span style={{fontFamily:mono,fontSize:9.5,color:T.moss,fontWeight:700,marginLeft:"auto"}}>● Active</span>}
-                      {isRetired&&<span style={{fontFamily:mono,fontSize:9.5,color:T.muted,marginLeft:"auto"}}>○ Disabled</span>}
-                      {agent.trainable&&!isRetired&&(
-                        <span style={{display:"flex",gap:6,marginLeft:4}}>
-                          <button onClick={()=>onEditEntry(entry)} style={{fontFamily:mono,fontSize:9,color:T.muted,background:"transparent",border:`1px solid ${T.lineSoft}`,padding:"2px 8px",cursor:"pointer",letterSpacing:.5,textTransform:"uppercase"}}
-                            onMouseEnter={e=>{e.target.style.color=T.brassDeep;e.target.style.borderColor=T.brass;}}
-                            onMouseLeave={e=>{e.target.style.color=T.muted;e.target.style.borderColor=T.lineSoft;}}>Edit</button>
-                          <button onClick={()=>onDeleteEntry(entry)} style={{fontFamily:mono,fontSize:9,color:T.muted,background:"transparent",border:`1px solid ${T.lineSoft}`,padding:"2px 8px",cursor:"pointer",letterSpacing:.5,textTransform:"uppercase"}}
-                            onMouseEnter={e=>{e.target.style.color=T.flag;e.target.style.borderColor=T.flag;}}
-                            onMouseLeave={e=>{e.target.style.color=T.muted;e.target.style.borderColor=T.lineSoft;}}>Delete</button>
-                        </span>
-                      )}
-                    </div>
-                    <div style={{fontFamily:display,fontSize:14.5,fontWeight:600,color:isRetired?T.mutedDeep:T.navy,lineHeight:1.2,marginBottom:isRetired?0:7,fontStyle:isRetired?"italic":"normal"}}>{entry.title}</div>
-                    {!isRetired&&entry.triggers?.length>0&&(
-                      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                        {(entry.triggers.includes("all")?["All Flags"]:entry.triggers).map(t=>(
-                          <span key={t} style={{fontFamily:mono,fontSize:8.5,padding:"1px 7px",background:`${T.flag}10`,color:T.flag,border:`1px solid ${T.flag}35`,letterSpacing:.3}}>⚑ {t.toUpperCase().replace(/-/g," ")}</span>
-                        ))}
-                      </div>
-                    )}
-                    {entry.priority!=null&&!isRetired&&<div style={{fontFamily:mono,fontSize:9,color:T.muted,marginTop:5}}>Priority {entry.priority}/100 · {entry.jurisdiction||"All"}</div>}
-                  </div>
-                </div>
-              );
-            })}
-
-            {agentEntries.length>5&&(
-              <div style={{padding:"12px 16px",textAlign:"center",background:T.cardAlt,borderTop:`1px solid ${T.lineSoft}`}}>
-                <button style={{background:"transparent",border:`1px solid ${T.line}`,color:T.brassDeep,padding:"6px 20px",fontFamily:mono,fontSize:10,cursor:"pointer",letterSpacing:.8,textTransform:"uppercase"}}>Show all {agentEntries.length} documents ▾</button>
-              </div>
-            )}
-          </div>
-
-          {/* Workflows placeholder */}
-          <div style={{background:T.card,border:`1px dashed ${T.lineSoft}`,padding:"14px 16px",marginTop:14,opacity:.6}}>
-            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:5}}>Exhibit II · Workflows</div>
-            <div style={{fontFamily:body,fontSize:13,color:T.muted,fontStyle:"italic"}}>Agentic workflow assignments — Coming Q3 2026</div>
-          </div>
-        </div>
-
-        {/* RIGHT: Compensation + Work Log */}
-        <div>
-          <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"16px 18px",marginBottom:14,position:"relative"}}>
-            <Corners/>
-            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:4}}>Compensation · FY2026</div>
-            <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:T.navy,marginBottom:14}}>The ledger</div>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
-              <div><div style={{fontFamily:body,fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:2}}>Salary Equivalent</div><div style={{fontFamily:display,fontSize:22,fontWeight:600,color:T.navy,fontVariantNumeric:"tabular-nums"}}>{fmt$(agent.salary)}</div></div>
-              <div style={{textAlign:"right"}}><div style={{fontFamily:body,fontSize:9,color:T.muted,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:2}}>Yearly Value</div><div style={{fontFamily:display,fontSize:22,fontWeight:600,color:T.moss,fontVariantNumeric:"tabular-nums"}}>{fmt$(agent.value)}</div></div>
-            </div>
-            {[["Hourly rate",`$${agent.hourly}`],["Hours per report",`${agent.reportHrs}h`],["Cost per AI Strategy Report",agent.reportCost===63?"Free":fmt$(agent.reportCost)],["Training invested",agent.classes>0?fmt$(agent.classes*1000):"$0"],["Revenue model",agent.revenueModel]].map(([k,v])=>(
-              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${T.lineSoft}`,fontSize:12}}>
-                <span style={{color:T.mutedDeep}}>{k}</span>
-                <span style={{fontFamily:mono,fontSize:11.5,color:T.ink,fontVariantNumeric:"tabular-nums"}}>{v}</span>
-              </div>
-            ))}
-            <div style={{marginTop:10,padding:"8px 10px",background:`${T.moss}10`,border:`1px solid ${T.moss}30`,fontFamily:body,fontSize:11.5,color:T.moss,lineHeight:1.4,fontStyle:"italic"}}>
-              <strong style={{fontStyle:"normal"}}>Mock data.</strong> Live billing will be activated in v5.
-            </div>
-          </div>
-          {/* Work log */}
-          <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"16px 18px",position:"relative"}}>
-            <Corners/>
-            <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:4}}>This Month · Work Log</div>
-            <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:T.navy,marginBottom:14}}>What {agent.name.split(" ")[0]} shipped</div>
-            <div style={{fontFamily:body,fontSize:12,color:T.muted,fontStyle:"italic",padding:"20px 0",textAlign:"center"}}>Work log — mock data, v5 feature.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SCREEN 3: TEACH AGENT
@@ -1256,7 +1064,7 @@ export default function TeamBuilder(){
         <div>
           <div style={{fontFamily:display,fontSize:17,fontWeight:600,letterSpacing:.2,lineHeight:1}}>NIGP Spend Analyzer</div>
           <div style={{fontFamily:body,fontSize:9.5,color:"#b8c5d8",letterSpacing:1.5,textTransform:"uppercase",marginTop:3}}>
-            Procurement Intelligence <span style={{color:T.brass,fontWeight:600}}>· Build Analyst Team</span>
+            Procurement Intelligence <span style={{color:T.brass,fontWeight:600}}>· Build AI Analyst Team</span>
           </div>
         </div>
         <div style={{flex:1}}/>
@@ -1275,7 +1083,7 @@ export default function TeamBuilder(){
       {/* Screen router */}
       <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
         {screen==="roster"&&<RosterScreen onViewFile={handleViewFile} onAddTraining={handleAddTraining} onTestTeam={handleTestTeam} showToast={showToast}/>}
-        {screen==="personnel"&&activeAgent&&<PersonnelScreen agent={activeAgent} entries={entries} entriesLoading={entriesLoading} onBack={()=>setScreen("roster")} onAddTraining={handleAddTraining} onTestAgent={handleTestAgent} onEditEntry={handleEditEntry} onDeleteEntry={handleDeleteEntry} showToast={showToast}/>}
+        {screen==="personnel"&&activeAgent&&<PersonnelScreen agent={activeAgent} entries={entries} entriesLoading={entriesLoading} onBack={()=>{setScreen("roster");setActiveAgent(null);}} onAddTraining={handleAddTraining} onTestAgent={handleTestAgent} onEditEntry={handleEditEntry} onDeleteEntry={handleDeleteEntry} showToast={showToast}/>}
         {screen==="teach"&&activeAgent&&<TeachScreen agent={activeAgent} existingEntry={editingEntry} onBack={()=>setScreen(editingEntry?"personnel":"roster")} onSaved={handleSaved} showToast={showToast}/>}
         {screen==="test"&&<TestTeamScreen filterAgent={testFilterAgent} onBack={()=>setScreen(testFilterAgent?"personnel":"roster")} showToast={showToast}/>}
       </div>
