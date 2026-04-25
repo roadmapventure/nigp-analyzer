@@ -982,11 +982,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                           const labels=["01 · Role","02 · RAG","04 · Format","05 · Guardrails"];
                           const start=testResult.system.indexOf(header);
                           if(start===-1) return null;
-                          const end=testResult.system.indexOf("
-
----
-
-",start);
+                          const end=testResult.system.indexOf("\n\n---\n\n",start);
                           const section=(end===-1?testResult.system.slice(start):testResult.system.slice(start,end)).replace(header,"").trim();
                           return(
                             <div key={header} style={{marginBottom:10,borderLeft:`3px solid ${colors[i]}`,paddingLeft:10}}>

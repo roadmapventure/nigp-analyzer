@@ -139,11 +139,7 @@ function computePromptDiff(r1, r2, agent1Name, agent2Name) {
     const marker = `=== ${header} ===`;
     const start = text.indexOf(marker);
     if (start === -1) return "";
-    const end = text.indexOf("
-
----
-
-", start);
+    const end = text.indexOf("\n\n---\n\n", start);
     return (end === -1 ? text.slice(start) : text.slice(start, end)).replace(marker, "").trim();
   };
 
@@ -1117,11 +1113,7 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
                           const labels=["01 · Role","02 · RAG","04 · Format","05 · Guardrails"];
                           const start=r.promptText.indexOf(header);
                           if(start===-1) return null;
-                          const end=r.promptText.indexOf("
-
----
-
-",start);
+                          const end=r.promptText.indexOf("\n\n---\n\n",start);
                           const section=(end===-1?r.promptText.slice(start):r.promptText.slice(start,end)).replace(header,"").trim();
                           return(
                             <div key={header} style={{marginBottom:10,borderLeft:`3px solid ${colors[i]}`,paddingLeft:10}}>
