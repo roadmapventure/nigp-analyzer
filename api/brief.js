@@ -119,6 +119,21 @@ export default async function handler(req, res) {
         guardrail_name:   guardrailConfig?.name || "fallback",
         rag_retrieved:    !!layer02,
         layers_assembled: layer02 ? 5 : 4,
+        // Full layer texts for test console display
+        layers: {
+          role:      layer01,
+          rag:       layer02 || null,
+          format:    layer04,
+          guardrail: layer05,
+        },
+        // Token estimates (rough: 1 token ≈ 4 chars)
+        token_estimates: {
+          role:      Math.round(layer01.length / 4),
+          rag:       Math.round((layer02||"").length / 4),
+          format:    Math.round(layer04.length / 4),
+          guardrail: Math.round(layer05.length / 4),
+          total:     Math.round(assembledSystem.length / 4),
+        },
       };
     }
 
@@ -140,7 +155,10 @@ export default async function handler(req, res) {
     }
 
     const result = await anthropicRes.json();
-    if (debugInfo) result._debug = debugInfo;
+    if (debugInfo) {
+      result._debug = debugInfo;
+      result._system = assembledSystem; // full assembled prompt for test console
+    }
     return res.status(200).json(result);
 
   } catch (err) {
