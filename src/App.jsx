@@ -281,6 +281,39 @@ export default function NIGPAnalyzer() {
   const [aiReviewError,setAiReviewError]=useState("");
   const [aiChristySelected,setAiChristySelected]=useState(false);
 
+  // Session-persistent config selections: { [agent_id]: { role_prompt_id, output_format_id } }
+  // Persists for the browser session; resets on page reload.
+  const [sessionConfigs,setSessionConfigs]=useState({});
+  // Per-agent selectable config options loaded on demand
+  const [agentConfigOptions,setAgentConfigOptions]=useState({});
+
+  const loadAgentConfigOptions=async(agentId)=>{
+    if(agentConfigOptions[agentId]) return;
+    try{
+      const [rRes,fRes]=await Promise.all([
+        fetch(`/api/agent-configs?tenant_id=global&agent_id=${agentId}&type=role_prompt`),
+        fetch(`/api/agent-configs?tenant_id=global&agent_id=${agentId}&type=output_format`),
+      ]);
+      const [rData,fData]=await Promise.all([rRes.json(),fRes.json()]);
+      const rolePrompts=(rData.configs||[]).filter(c=>c.is_user_selectable||c.is_default);
+      const outputFormats=(fData.configs||[]).filter(c=>c.is_user_selectable||c.is_default);
+      setSessionConfigs(prev=>{
+        const current=prev[agentId]||{};
+        const defRole=rolePrompts.find(c=>c.is_default);
+        const defFormat=outputFormats.find(c=>c.is_default);
+        return{...prev,[agentId]:{
+          role_prompt_id: current.role_prompt_id||(defRole?.id||""),
+          output_format_id: current.output_format_id||(defFormat?.id||""),
+        }};
+      });
+      setAgentConfigOptions(prev=>({...prev,[agentId]:{rolePrompts,outputFormats}}));
+    }catch(e){console.warn("Could not load agent config options for",agentId,e.message);}
+  };
+
+  const setSessionConfig=(agentId,field,value)=>{
+    setSessionConfigs(prev=>({...prev,[agentId]:{...(prev[agentId]||{}), [field]:value}}));
+  };
+
   const AI_AGENTS=[
     {id:"chloe",  name:"Chloe Okafor",     role:"Junior Procurement Analyst",    arch:"LLM Prompt",      skill:18, awareness:10, cost:"Free",  costNum:0,   color:T.brass},
     {id:"mike",   name:"Mike Alvarez",      role:"Senior Procurement Analyst",    arch:"LLM Deep Prompt", skill:42, awareness:25, cost:"$141",  costNum:141, color:T.brass},
@@ -294,6 +327,8 @@ export default function NIGPAnalyzer() {
     setAiPickedAgents(prev=>{
       if(prev.includes(id)) return prev.filter(x=>x!==id);
       if(prev.length>=2) return prev;
+      // Load user-selectable config options for this agent on first selection
+      loadAgentConfigOptions(id);
       return [...prev,id];
     });
   };
@@ -308,7 +343,15 @@ export default function NIGPAnalyzer() {
     try{
       const newResults={};
       for(const agentId of aiPickedAgents){
-        const res=await fetch("/api/brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:userMsg}],agent_id:agentId,ragContext:{queryText:`${data.flags.map(f=>f.title).join(" ")} procurement analysis ${fileName}`,jurisdiction:"Texas",triggers:[]}})});
+        const agentSession=sessionConfigs[agentId]||{};
+        const res=await fetch("/api/brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          messages:[{role:"user",content:userMsg}],
+          agent_id:agentId,
+          tenant_id:"global",
+          role_prompt_id:agentSession.role_prompt_id||undefined,
+          output_format_id:agentSession.output_format_id||undefined,
+          ragContext:{queryText:`${data.flags.map(f=>f.title).join(" ")} procurement analysis ${fileName}`,jurisdiction:"Texas",triggers:[]},
+        })});
         const json=await res.json();
         newResults[agentId]=json.content?.[0]?.text||json.error||"No response";
       }
@@ -316,7 +359,7 @@ export default function NIGPAnalyzer() {
       setAiReviewStage(3);
     }catch(err){
       setAiReviewError("Generation failed: "+err.message);
-      setAiReviewStage(1);
+      setAiReviewStage(2); // stay on generating screen so error is visible
     }
   };
 
@@ -1130,6 +1173,40 @@ export default function NIGPAnalyzer() {
                             );
                           })}
                         </div>
+                        {/* Session config selectors — shown per selected agent when user-selectable options exist */}
+                        {aiPickedAgents.map(agentId=>{
+                          const opts=agentConfigOptions[agentId];
+                          if(!opts) return null;
+                          const hasRoleChoice=opts.rolePrompts.filter(c=>c.is_user_selectable).length>0;
+                          const hasFormatChoice=opts.outputFormats.filter(c=>c.is_user_selectable).length>0;
+                          if(!hasRoleChoice&&!hasFormatChoice) return null;
+                          const agentDef=AI_AGENTS.find(a=>a.id===agentId);
+                          const agentSession=sessionConfigs[agentId]||{};
+                          return(
+                            <div key={agentId} style={{background:T.cardAlt,border:`1px solid ${T.lineSoft}`,padding:"10px 14px",marginBottom:8,display:"flex",gap:14,alignItems:"flex-end",flexWrap:"wrap"}}>
+                              <div style={{fontFamily:mono,fontSize:9,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.2,fontWeight:600,alignSelf:"center",flexShrink:0}}>{agentDef?.name.split(" ")[0]} →</div>
+                              {hasRoleChoice&&(
+                                <div>
+                                  <div style={{fontFamily:mono,fontSize:8.5,color:T.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:3}}>Role Prompt</div>
+                                  <select value={agentSession.role_prompt_id||""} onChange={e=>setSessionConfig(agentId,"role_prompt_id",e.target.value)}
+                                    style={{background:T.paper,border:`1px solid ${T.line}`,padding:"5px 9px",fontFamily:body,fontSize:11.5,color:T.ink,cursor:"pointer",appearance:"none",minWidth:160}}>
+                                    {opts.rolePrompts.map(c=><option key={c.id} value={c.id}>{c.name}{c.is_default?" (default)":""}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                              {hasFormatChoice&&(
+                                <div>
+                                  <div style={{fontFamily:mono,fontSize:8.5,color:T.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:3}}>Output Format</div>
+                                  <select value={agentSession.output_format_id||""} onChange={e=>setSessionConfig(agentId,"output_format_id",e.target.value)}
+                                    style={{background:T.paper,border:`1px solid ${T.line}`,padding:"5px 9px",fontFamily:body,fontSize:11.5,color:T.ink,cursor:"pointer",appearance:"none",minWidth:160}}>
+                                    {opts.outputFormats.map(c=><option key={c.id} value={c.id}>{c.name}{c.is_default?" (default)":""}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
                         {/* Selected strip + generate */}
                         <div style={{background:T.card,border:`1px solid ${T.line}`,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative"}}>
                           <Corners/>
