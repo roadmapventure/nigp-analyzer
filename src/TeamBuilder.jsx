@@ -126,6 +126,105 @@ function computeDelta(beforeText,afterText){
   return{wordDiff:a.words-b.words,statutesBefore:b.statutes,statutesAfter:a.statutes,dollarsBefore:b.dollarThresholds,dollarsAfter:a.dollarThresholds,orgsBefore:b.orgRefs,orgsAfter:a.orgRefs,actionsBefore:b.actionCount,actionsAfter:a.actionCount,beforeWords:b.words,afterWords:a.words};
 }
 
+// ── Prompt layer diff analysis ───────────────────────────────────────────────────
+function computePromptDiff(r1, r2, agent1Name, agent2Name) {
+  if (!r1 || !r2) return null;
+  const p1 = r1.promptText || "";
+  const p2 = r2.promptText || "";
+  const d1 = r1.debugInfo || {};
+  const d2 = r2.debugInfo || {};
+
+  // Extract sections by header marker
+  const getSection = (text, header) => {
+    const marker = `=== ${header} ===`;
+    const start = text.indexOf(marker);
+    if (start === -1) return "";
+    const end = text.indexOf("
+
+---
+
+", start);
+    return (end === -1 ? text.slice(start) : text.slice(start, end)).replace(marker, "").trim();
+  };
+
+  const role1    = getSection(p1, "ROLE & IDENTITY");
+  const role2    = getSection(p2, "ROLE & IDENTITY");
+  const rag1     = getSection(p1, "BACKGROUND KNOWLEDGE");
+  const rag2     = getSection(p2, "BACKGROUND KNOWLEDGE");
+  const format1  = getSection(p1, "OUTPUT FORMAT");
+  const format2  = getSection(p2, "OUTPUT FORMAT");
+  const guard1   = getSection(p1, "CONSTRAINTS & GUARDRAILS");
+  const guard2   = getSection(p2, "CONSTRAINTS & GUARDRAILS");
+
+  const tokEst = (s) => Math.round(s.length / 4);
+  const wordCount = (s) => s.split(/\s+/).filter(Boolean).length;
+  const overlap = (a, b) => {
+    if (!a || !b) return 0;
+    const wa = new Set(a.toLowerCase().split(/\W+/).filter(w => w.length > 4));
+    const wb = new Set(b.toLowerCase().split(/\W+/).filter(w => w.length > 4));
+    const inter = [...wa].filter(w => wb.has(w)).length;
+    const union = new Set([...wa, ...wb]).size;
+    return union === 0 ? 100 : Math.round((inter / union) * 100);
+  };
+
+  return {
+    agent1: agent1Name, agent2: agent2Name,
+    total: { t1: tokEst(p1), t2: tokEst(p2) },
+    layers: [
+      {
+        label: "01 · Role & Behavior",
+        name1: d1.role_name || "—", name2: d2.role_name || "—",
+        text1: role1, text2: role2,
+        tok1: tokEst(role1), tok2: tokEst(role2),
+        words1: wordCount(role1), words2: wordCount(role2),
+        overlap: overlap(role1, role2),
+        same: role1 === role2,
+        key: "role",
+      },
+      {
+        label: "02 · Background (RAG)",
+        name1: d1.rag_retrieved ? "Retrieved" : "None", name2: d2.rag_retrieved ? "Retrieved" : "None",
+        text1: rag1, text2: rag2,
+        tok1: tokEst(rag1), tok2: tokEst(rag2),
+        words1: wordCount(rag1), words2: wordCount(rag2),
+        overlap: overlap(rag1, rag2),
+        same: rag1 === rag2,
+        key: "rag",
+      },
+      {
+        label: "03 · Analysis Payload",
+        name1: "Same data payload", name2: "Same data payload",
+        text1: "", text2: "",
+        tok1: 0, tok2: 0,
+        words1: 0, words2: 0,
+        overlap: 100,
+        same: true,
+        key: "payload",
+      },
+      {
+        label: "04 · Output Format",
+        name1: d1.format_name || "—", name2: d2.format_name || "—",
+        text1: format1, text2: format2,
+        tok1: tokEst(format1), tok2: tokEst(format2),
+        words1: wordCount(format1), words2: wordCount(format2),
+        overlap: overlap(format1, format2),
+        same: format1 === format2,
+        key: "format",
+      },
+      {
+        label: "05 · Guardrails",
+        name1: d1.guardrail_name || "—", name2: d2.guardrail_name || "—",
+        text1: guard1, text2: guard2,
+        tok1: tokEst(guard1), tok2: tokEst(guard2),
+        words1: wordCount(guard1), words2: wordCount(guard2),
+        overlap: overlap(guard1, guard2),
+        same: guard1 === guard2,
+        key: "guardrail",
+      },
+    ],
+  };
+}
+
 // ── PDF/DOCX extraction via api/extract ────────────────────────────────────────
 async function extractTextFromFile(file){
   return new Promise((resolve)=>{
@@ -706,6 +805,110 @@ function TeachScreen({agent,existingEntry,onBack,onSaved,showToast}){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// PROMPT COMPARISON PANEL
+// ══════════════════════════════════════════════════════════════════════════════
+function PromptComparisonPanel({ pd }) {
+  const [layerOpen, setLayerOpen] = useState({});
+  const toggle = (k) => setLayerOpen(m => ({ ...m, [k]: !m[k] }));
+  const overlapColor = (pct) => pct >= 90 ? T.moss : pct >= 60 ? T.brass : T.flag;
+  const layerColors = ["#9b6ef3", T.moss, T.brassDeep, T.brass, T.flag];
+
+  return (
+    <div style={{background:T.card,border:`1px solid ${T.line}`,marginBottom:16,position:"relative"}}>
+      <Corners color={T.navy}/>
+      {/* Header */}
+      <div style={{background:T.navyMid,padding:"12px 18px",display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontFamily:mono,fontSize:9,color:T.brassLight,textTransform:"uppercase",letterSpacing:1.8,fontWeight:600,marginBottom:3}}>Prompt Intelligence</div>
+          <div style={{fontFamily:display,fontSize:14,fontWeight:600,color:T.card}}>System Prompt Comparison — Why they think differently</div>
+        </div>
+        <div style={{display:"flex",gap:20}}>
+          {[{name:pd.agent1,tok:pd.total.t1},{name:pd.agent2,tok:pd.total.t2}].map(({name,tok})=>(
+            <div key={name} style={{textAlign:"right"}}>
+              <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>{name} · total tokens</div>
+              <div style={{fontFamily:display,fontSize:16,fontWeight:700,color:T.brassLight,fontVariantNumeric:"tabular-nums"}}>{tok.toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Layer rows */}
+      <div>
+        {pd.layers.map((layer, i) => {
+          const isOpen = layerOpen[layer.key];
+          const oc = overlapColor(layer.overlap);
+          const lc = layerColors[i];
+          return (
+            <div key={layer.key} style={{borderBottom:`1px solid ${T.lineSoft}`}}>
+              <div
+                onClick={() => !layer.same && toggle(layer.key)}
+                style={{display:"grid",gridTemplateColumns:"200px 1fr 1fr 90px 28px",alignItems:"center",padding:"10px 18px",cursor:layer.same?"default":"pointer",background:isOpen?T.cardAlt:"transparent",transition:"background .15s"}}
+              >
+                {/* Layer label */}
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:3,height:32,background:lc,flexShrink:0}}/>
+                  <div>
+                    <div style={{fontFamily:mono,fontSize:9,fontWeight:700,color:lc,letterSpacing:.5}}>{layer.label}</div>
+                    {layer.same
+                      ? <div style={{fontFamily:mono,fontSize:8.5,color:T.moss,fontWeight:600}}>● Identical</div>
+                      : <div style={{fontFamily:mono,fontSize:8.5,color:T.flag}}>◉ Different</div>
+                    }
+                  </div>
+                </div>
+                {/* Agent 1 */}
+                <div style={{padding:"0 14px",borderLeft:`1px solid ${T.lineSoft}`}}>
+                  <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",marginBottom:2}}>{pd.agent1}</div>
+                  <div style={{fontFamily:body,fontSize:11.5,color:T.navy,fontWeight:500}}>{layer.name1}</div>
+                  {!layer.same&&layer.tok1>0&&<div style={{fontFamily:mono,fontSize:9,color:T.muted,marginTop:1}}>{layer.tok1} tokens · {layer.words1} words</div>}
+                </div>
+                {/* Agent 2 */}
+                <div style={{padding:"0 14px",borderLeft:`1px solid ${T.lineSoft}`}}>
+                  <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",marginBottom:2}}>{pd.agent2}</div>
+                  <div style={{fontFamily:body,fontSize:11.5,color:T.navy,fontWeight:500}}>{layer.name2}</div>
+                  {!layer.same&&layer.tok2>0&&<div style={{fontFamily:mono,fontSize:9,color:T.muted,marginTop:1}}>{layer.tok2} tokens · {layer.words2} words</div>}
+                </div>
+                {/* Overlap */}
+                <div style={{textAlign:"center",borderLeft:`1px solid ${T.lineSoft}`,padding:"0 10px"}}>
+                  <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",marginBottom:3,textTransform:"uppercase",letterSpacing:.5}}>Overlap</div>
+                  <div style={{fontFamily:display,fontSize:18,fontWeight:700,color:oc,lineHeight:1}}>{layer.overlap}%</div>
+                  <div style={{height:3,background:T.paperDeep,marginTop:4}}>
+                    <div style={{height:"100%",width:`${layer.overlap}%`,background:oc}}/>
+                  </div>
+                </div>
+                {!layer.same&&<div style={{textAlign:"center",fontFamily:mono,fontSize:10,color:T.muted}}>{isOpen?"▲":"▼"}</div>}
+              </div>
+              {/* Expanded side-by-side */}
+              {isOpen&&!layer.same&&(
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:`1px solid ${T.lineSoft}`}}>
+                  {[{name:pd.agent1,text:layer.text1},{name:pd.agent2,text:layer.text2}].map(({name,text},si)=>(
+                    <div key={name} style={{padding:"12px 16px",borderRight:si===0?`1px solid ${T.lineSoft}`:"none",background:T.navyDeep}}>
+                      <div style={{fontFamily:mono,fontSize:8.5,color:lc,fontWeight:700,textTransform:"uppercase",letterSpacing:.8,marginBottom:7}}>{name}</div>
+                      <div style={{fontFamily:mono,fontSize:10.5,color:"#8fa3bf",lineHeight:1.7,whiteSpace:"pre-wrap",maxHeight:160,overflowY:"auto"}}>{text||"(empty)"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Summary insight */}
+      <div style={{padding:"11px 18px",background:T.cardAlt,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:8,height:8,borderRadius:"50%",background:T.navy,flexShrink:0}}/>
+        <div style={{fontFamily:body,fontSize:12,color:T.mutedDeep,lineHeight:1.5,flex:1}}>
+          {pd.layers.filter(l=>!l.same).length===0
+            ? `${pd.agent1} and ${pd.agent2} have identical prompt configurations. Output differences are driven entirely by their RAG knowledge base.`
+            : `${pd.layers.filter(l=>!l.same).length} of 5 prompt layers differ. ${pd.layers.filter(l=>!l.same&&l.overlap<60).map(l=>l.label.split("·")[1]?.trim()).filter(Boolean).join(" and ")||"These layers"} drive the most divergence. Click any row to compare the actual prompt text side by side.`
+          }
+        </div>
+        <div style={{fontFamily:mono,fontSize:9,color:T.muted,flexShrink:0}}>Configure in Resume & Playbook tabs</div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // SCREEN 4: TEST MY TEAM
 // ══════════════════════════════════════════════════════════════════════════════
 function TestTeamScreen({filterAgent,onBack,showToast}){
@@ -733,23 +936,32 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
     try{
       const newResults={};
       for(const agentId of selectedAgents){
-        // Fetch RAG context for this agent
+        // Fetch RAG entries for display (brief.js also fetches internally for the prompt)
         const ragRes=await fetch("/api/rag-query",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({queryText:selectedScenario.queryText,jurisdiction:selectedScenario.jurisdiction,matchCount:5,tenant_id:"global",agent_id:agentId})});
         const ragJson=await ragRes.json();
-        const ragContext=ragJson.context||"";
         const ragEntries=ragJson.entries||[];
-        // Run briefing with agent context
-        const briefRes=await fetch("/api/brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:ragContext?`${ragContext}\n\n---\n\n${BASE_SYSTEM}`:BASE_SYSTEM,messages:[{role:"user",content:scenarioMsg}],agent_id:agentId})});
+        // Run briefing — brief.js assembles full 5-layer prompt using agent_configs
+        const briefRes=await fetch("/api/brief",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+          messages:[{role:"user",content:scenarioMsg}],
+          agent_id:agentId,
+          tenant_id:"global",
+          ragContext:{queryText:selectedScenario.queryText,jurisdiction:selectedScenario.jurisdiction,triggers:[]},
+        })});
         const briefJson=await briefRes.json();
         const briefText=briefJson.content?.[0]?.text||briefJson.error||"No response";
-        const promptText=ragContext?`SYSTEM:\n${ragContext}\n\n---\n\n${BASE_SYSTEM}\n\nUSER:\n${scenarioMsg}`:`SYSTEM:\n${BASE_SYSTEM}\n\nUSER:\n${scenarioMsg}`;
-        newResults[agentId]={briefText,ragEntries,ragContext,promptText,promptChars:promptText.length,promptTokens:Math.round(promptText.length/4)};
+        const assembledSystem=briefJson._system||"(system prompt not returned — redeploy brief.js)";
+        const debugInfo=briefJson._debug||{};
+        newResults[agentId]={briefText,ragEntries,promptText:assembledSystem,debugInfo,promptChars:assembledSystem.length,promptTokens:Math.round(assembledSystem.length/4)};
       }
-      // Compute delta if 2 agents
+      // Compute output delta and prompt diff if 2 agents
       if(selectedAgents.length===2){
         const [a1,a2]=selectedAgents;
         const delta=computeDelta(newResults[a1].briefText,newResults[a2].briefText);
+        const agent1=AGENTS.find(a=>a.id===a1);
+        const agent2=AGENTS.find(a=>a.id===a2);
+        const promptDiff=computePromptDiff(newResults[a1],newResults[a2],agent1?.name.split(" ")[0]||a1,agent2?.name.split(" ")[0]||a2);
         newResults._delta=delta;
+        newResults._promptDiff=promptDiff;
         newResults._a1=a1;
         newResults._a2=a2;
       }
@@ -881,24 +1093,51 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
                   <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"16px 18px",flex:1}}>
                     <div style={{fontFamily:body,fontSize:12.5,color:T.mutedDeep,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{r.briefText}</div>
                   </div>
-                  {/* Prompt + RAG reveal */}
+                  {/* Prompt + RAG reveal — shows real assembled prompt from brief.js */}
                   <div style={{background:T.navyDeep,border:`1px solid rgba(255,255,255,.1)`,borderTop:"none"}}>
-                    <div style={{display:"flex",borderBottom:`1px solid rgba(255,255,255,.1)`}}>
-                      {[["System Prompt","prompt"],["RAG Chunks Retrieved","rag"]].map(([label,key])=>(
+                    <div style={{display:"flex",alignItems:"center",borderBottom:`1px solid rgba(255,255,255,.1)`}}>
+                      {[["Full System Prompt","prompt"],["RAG Chunks","rag"]].map(([label,key])=>(
                         <button key={key} onClick={()=>setPromptOpenMap(m=>({...m,[agentId]:{...promptOpen,[key]:!promptOpen[key]}}))} style={{padding:"7px 14px",fontFamily:mono,fontSize:9.5,color:promptOpen[key]?T.brassLight:"#8fa3bf",textTransform:"uppercase",letterSpacing:.8,cursor:"pointer",border:"none",background:"transparent",borderBottom:`2px solid ${promptOpen[key]?T.brass:"transparent"}`}}>{label}</button>
                       ))}
                       <div style={{flex:1}}/>
-                      <span style={{fontFamily:mono,fontSize:9,color:T.brassLight,padding:"7px 12px",alignSelf:"center"}}>Admin Only</span>
+                      {r.debugInfo&&(
+                        <div style={{display:"flex",gap:10,padding:"4px 12px"}}>
+                          {[["Role",r.debugInfo.role_name],["Format",r.debugInfo.format_name],["Layers",r.debugInfo.layers_assembled],["~Tokens",r.promptTokens]].map(([k,v])=>(
+                            <div key={k}><span style={{fontFamily:mono,fontSize:8,color:"#8fa3bf"}}>{k}: </span><span style={{fontFamily:mono,fontSize:8,color:T.brassLight,fontWeight:700}}>{v}</span></div>
+                          ))}
+                        </div>
+                      )}
+                      <span style={{fontFamily:mono,fontSize:9,color:T.brassLight,padding:"7px 12px",alignSelf:"center",borderLeft:"1px solid rgba(255,255,255,.1)"}}>Admin Only</span>
                     </div>
                     {promptOpen.prompt&&(
-                      <div style={{padding:"12px 16px",fontFamily:mono,fontSize:11,color:"#8fa3bf",lineHeight:1.7,maxHeight:200,overflowY:"auto",whiteSpace:"pre-wrap"}}>{r.promptText}</div>
+                      <div style={{padding:"12px 16px",maxHeight:240,overflowY:"auto"}}>
+                        {/* Per-layer breakdown with color coding */}
+                        {["=== ROLE & IDENTITY ===","=== BACKGROUND KNOWLEDGE ===","=== OUTPUT FORMAT ===","=== CONSTRAINTS & GUARDRAILS ==="].map((header,i)=>{
+                          const colors=["#9b6ef3","#5a9b6f","#b6873a","#a83319"];
+                          const labels=["01 · Role","02 · RAG","04 · Format","05 · Guardrails"];
+                          const start=r.promptText.indexOf(header);
+                          if(start===-1) return null;
+                          const end=r.promptText.indexOf("
+
+---
+
+",start);
+                          const section=(end===-1?r.promptText.slice(start):r.promptText.slice(start,end)).replace(header,"").trim();
+                          return(
+                            <div key={header} style={{marginBottom:10,borderLeft:`3px solid ${colors[i]}`,paddingLeft:10}}>
+                              <div style={{fontFamily:mono,fontSize:8.5,color:colors[i],fontWeight:700,letterSpacing:.8,marginBottom:4}}>{labels[i]}</div>
+                              <div style={{fontFamily:mono,fontSize:10.5,color:"#8fa3bf",lineHeight:1.6,whiteSpace:"pre-wrap",maxHeight:80,overflowY:"auto"}}>{section}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                     {promptOpen.rag&&(
-                      <div style={{padding:"12px 16px",fontFamily:mono,fontSize:11,color:"#8fa3bf",lineHeight:1.7,maxHeight:200,overflowY:"auto"}}>
-                        {r.ragEntries.length===0&&<div style={{color:T.flag,fontStyle:"italic"}}>⚠ No chunks retrieved — add more training documents for this scenario type.</div>}
+                      <div style={{padding:"12px 16px",maxHeight:200,overflowY:"auto"}}>
+                        {r.ragEntries.length===0&&<div style={{fontFamily:mono,fontSize:11,color:T.flag,fontStyle:"italic"}}>⚠ No chunks retrieved — add training documents for this scenario type.</div>}
                         {r.ragEntries.map((e,i)=>(
                           <div key={i} style={{background:`${T.moss}10`,borderLeft:`3px solid ${T.moss}`,padding:"6px 10px",marginBottom:6,fontSize:10.5,color:T.mossLight,lineHeight:1.5}}>
-                            <strong style={{color:T.card}}>{e.title}</strong> <span style={{color:T.brassLight}}>{Math.round((e.similarity||0)*100)}% match</span>
+                            <strong style={{color:T.card}}>{e.title}</strong> <span style={{color:T.brassLight,fontFamily:mono,fontSize:9}}>{Math.round((e.similarity||0)*100)}% match</span>
                           </div>
                         ))}
                       </div>
@@ -909,7 +1148,12 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
             })}
           </div>
 
-          {/* Delta panel — only if 2 agents */}
+          {/* ── PROMPT COMPARISON PANEL ── only if 2 agents */}
+          {selectedAgents.length===2&&results._promptDiff&&(
+            <PromptComparisonPanel pd={results._promptDiff}/>
+          )}
+
+          {/* ── OUTPUT DELTA PANEL ── only if 2 agents */}
           {selectedAgents.length===2&&results._delta&&(()=>{
             const d=results._delta;
             const a1=AGENTS.find(a=>a.id===results._a1);
