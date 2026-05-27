@@ -234,7 +234,7 @@ const NAV_GROUPS = [
   { id:"strategy-group", label:"Strategy", tabs:[
     {id:"flags",label:"Concerns",icon:"⚑"},
     {id:"localspend",label:"Local Spend",icon:"📍"},
-    {id:"concentration",label:"Vendor Analysis",icon:"⚡"},
+    {id:"concentration",label:"Vendor Diversity",icon:"⚡"},
     {id:"aibriefing",label:"AI Review",icon:"✨"},
   ]},
   { id:"data-group", label:"Data", tabs:[

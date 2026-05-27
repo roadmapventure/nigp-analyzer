@@ -642,7 +642,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
       })});
       const briefJson = await briefRes.json();
       const text = briefJson.content?.[0]?.text || briefJson.error || "No response";
-      setTestResult({ text, debug: briefJson._debug });
+      setTestResult({ text, debug: briefJson._debug, system: briefJson._system||null });
       setRunState("done"); setTestStage(3);
       showToast("🐝 Test complete","🐝");
     } catch (err) { setTestError(err.message); setRunState("error"); showToast("Test failed: "+err.message,"⚠"); }
@@ -974,7 +974,27 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                   ))}
                   <div style={{flex:1}}/><span style={{fontFamily:mono,fontSize:9,color:T.brassLight,padding:"6px 11px",alignSelf:"center"}}>Admin Only</span>
                 </div>
-                {promptOpen.prompt&&<div style={{padding:"11px 15px",fontFamily:mono,fontSize:11,color:"#8fa3bf",lineHeight:1.7,maxHeight:200,overflowY:"auto",whiteSpace:"pre-wrap"}}>Full assembled prompt (Role + RAG + Format + Guardrails) sent to Anthropic. View in server logs for complete text.</div>}
+                {promptOpen.prompt&&(
+                  <div style={{padding:"11px 15px",maxHeight:260,overflowY:"auto"}}>
+                    {testResult?.system
+                      ? ["=== ROLE & IDENTITY ===","=== BACKGROUND KNOWLEDGE ===","=== OUTPUT FORMAT ===","=== CONSTRAINTS & GUARDRAILS ==="].map((header,i)=>{
+                          const colors=["#9b6ef3",T.moss,T.brass,T.flag];
+                          const labels=["01 · Role","02 · RAG","04 · Format","05 · Guardrails"];
+                          const start=testResult.system.indexOf(header);
+                          if(start===-1) return null;
+                          const end=testResult.system.indexOf("\n\n---\n\n",start);
+                          const section=(end===-1?testResult.system.slice(start):testResult.system.slice(start,end)).replace(header,"").trim();
+                          return(
+                            <div key={header} style={{marginBottom:10,borderLeft:`3px solid ${colors[i]}`,paddingLeft:10}}>
+                              <div style={{fontFamily:mono,fontSize:8.5,color:colors[i],fontWeight:700,letterSpacing:.8,marginBottom:4}}>{labels[i]}</div>
+                              <div style={{fontFamily:mono,fontSize:10.5,color:"#8fa3bf",lineHeight:1.6,whiteSpace:"pre-wrap",maxHeight:80,overflowY:"auto"}}>{section}</div>
+                            </div>
+                          );
+                        })
+                      : <div style={{fontFamily:mono,fontSize:11,color:"#8fa3bf",lineHeight:1.7,whiteSpace:"pre-wrap",fontStyle:"italic"}}>Redeploy brief.js to see the assembled prompt here.</div>
+                    }
+                  </div>
+                )}
                 {promptOpen.rag&&(
                   <div style={{padding:"11px 15px",fontFamily:mono,fontSize:11,color:"#8fa3bf",lineHeight:1.7,maxHeight:200,overflowY:"auto"}}>
                     {ragEntries.length===0&&<div style={{color:T.flag,fontStyle:"italic"}}>⚠ No chunks retrieved — add more training documents for this scenario type.</div>}
