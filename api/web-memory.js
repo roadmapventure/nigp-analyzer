@@ -1,5 +1,7 @@
 // api/web-memory.js
 // Two endpoints:
+export const config = { maxDuration: 60, runtime: "nodejs" };
+
 //   GET  ?url=<encoded_url>  — retrieve memory for a portal URL before a run
 //   POST                     — save what the agent learned after a run
 
