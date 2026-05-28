@@ -536,6 +536,8 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
   const [extractedOpen, setExtractedOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({ title:"", category:"Standards", jurisdiction:"All", priority:50, triggers:[], teaching_note:"" });
+  const [expandedEntries, setExpandedEntries] = useState({});
+  const toggleEntryExpand = (id) => setExpandedEntries(s=>({...s,[id]:!s[id]}));
   const fileRef = useRef(null);
   const pInfo = priorityInfo(form.priority);
   const locked = uploadState !== "ready";
@@ -723,6 +725,22 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                   </div>
                 )}
                 {entry.priority!=null&&<div style={{fontFamily:mono,fontSize:9,color:T.muted}}>Priority {entry.priority}/100</div>}
+                {/* Expandable learned content — shown for all entries, especially agent field notes */}
+                {entry.content&&(
+                  <div style={{marginTop:6}}>
+                    <button onClick={()=>toggleEntryExpand(entry.id)} style={{fontFamily:mono,fontSize:9,color:T.brassDeep,background:"transparent",border:`1px solid ${T.lineSoft}`,padding:"2px 8px",cursor:"pointer",letterSpacing:.5,textTransform:"uppercase",display:"flex",alignItems:"center",gap:4}}>
+                      {expandedEntries[entry.id]?"▾ Hide":"▸ What Brent Learned"}
+                    </button>
+                    {expandedEntries[entry.id]&&(
+                      <div style={{marginTop:6,padding:"10px 12px",background:T.cardAlt,border:`1px solid ${T.lineSoft}`,borderLeft:`3px solid ${entry.source_type==="agent"?T.moss:T.brass}`}}>
+                        <div style={{fontFamily:mono,fontSize:8.5,color:T.muted,textTransform:"uppercase",letterSpacing:1.2,fontWeight:600,marginBottom:6}}>
+                          {entry.source_type==="agent"?"🤖 Agent Field Note — Learned Content":"📄 Training Document Content"}
+                        </div>
+                        <div style={{fontFamily:body,fontSize:12,color:T.mutedDeep,lineHeight:1.65,whiteSpace:"pre-wrap"}}>{entry.content}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
