@@ -697,7 +697,15 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
               <div style={{padding:"10px 13px"}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>
                   <span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${cc}40`,color:cc,background:`${cc}12`,fontWeight:600,letterSpacing:.5}}>{(entry.category||"").toUpperCase()}</span>
-                  {entry.source_type==="agent"&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.moss}40`,color:T.moss,background:`${T.moss}12`,fontWeight:600,letterSpacing:.5}}>🤖 FIELD NOTE</span>}
+                  {entry.source_type==="agent"&&(()=>{
+                    const isSuccess = entry.teaching_note?.includes("|success");
+                    const isFailed  = entry.teaching_note?.includes("|failed");
+                    return(<>
+                      <span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.moss}40`,color:T.moss,background:`${T.moss}12`,fontWeight:600,letterSpacing:.5}}>🤖 FIELD NOTE</span>
+                      {isSuccess&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.moss}60`,color:T.moss,background:`${T.moss}15`,fontWeight:700,letterSpacing:.5}}>✓ SUCCESS</span>}
+                      {isFailed &&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.flag}60`,color:T.flag,background:`${T.flag}10`,fontWeight:700,letterSpacing:.5}}>✗ FAILED</span>}
+                    </>);
+                  })()}
                   {entry.steps_taken&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.brass}40`,color:T.brass,background:`${T.brass}10`,fontWeight:600,letterSpacing:.5}}>{entry.steps_taken} STEPS</span>}
                   <span style={{fontFamily:mono,fontSize:9,color:T.muted}}>▸ {entry.jurisdiction||"All"}</span>
                   <span style={{fontFamily:mono,fontSize:9,color:isRetired?T.muted:T.moss,marginLeft:"auto",fontWeight:700}}>{isRetired?"○ Disabled":"● Active"}</span>
