@@ -43,8 +43,9 @@ export default async function handler(req, res) {
       const allEntries = portalRes.ok ? await portalRes.json() : [];
 
       // Filter: entries matching this URL, plus general cross-site patterns
+      // teaching_note format: "url|success" or "url|failed"
       const urlEntries = allEntries.filter(e =>
-        e.teaching_note?.includes(url) || e.teaching_note?.includes(domain)
+        e.teaching_note?.startsWith(url) || e.teaching_note?.includes(domain)
       );
       const generalEntries = allEntries.filter(e =>
         !e.teaching_note?.includes(url) && !e.teaching_note?.includes(domain)
@@ -72,9 +73,12 @@ export default async function handler(req, res) {
           `## PORTAL-SPECIFIC MEMORY: ${url}\n` +
           `I have visited this portal ${urlEntries.length} time(s) before. Here is what I learned:\n\n` +
           urlEntries.map((e, i) => {
-            const stepsNote = e.steps_taken ? ` (completed in ${e.steps_taken} steps)` : "";
+            const stepsNote = e.steps_taken ? ` in ${e.steps_taken} steps` : "";
             const date = e.created_at ? new Date(e.created_at).toLocaleDateString() : "";
-            return `**Visit ${i + 1}${stepsNote}${date ? ` — ${date}` : ""}:**\n${e.content}`;
+            const outcome = e.teaching_note?.includes("|success") ? "✓ SUCCESS" 
+                          : e.teaching_note?.includes("|failed")  ? "✗ FAILED" 
+                          : "";
+            return `**Visit ${i + 1} — ${outcome}${stepsNote}${date ? ` (${date})` : ""}:**\n${e.content}`;
           }).join("\n\n")
         );
       }
@@ -141,6 +145,7 @@ export default async function handler(req, res) {
       }).join("\n");
 
       const outcome = success ? `SUCCESS in ${steps_taken} steps` : `FAILED after ${steps_taken} steps`;
+      const outcomeTag = success ? "✓ Success" : "✗ Failed";
 
       const learningPrompt = `You are Brent Matthews, a Data Research Specialist AI agent. You just attempted to download government spending data from this portal: ${url}
 
@@ -149,10 +154,12 @@ Outcome: ${outcome}
 Here is the complete action history:
 ${historyText}
 
-Write a concise field note that will help you (or future runs) navigate this portal faster. Structure your response as valid JSON only:
+Write a concise field note that will help you avoid mistakes on future runs. ${!success ? "Focus especially on what went wrong and what to try differently next time." : "Focus on what worked so it can be repeated reliably."}
+
+Structure your response as valid JSON only:
 {
-  "title": "Short descriptive title (e.g., 'Maryland MD-VIEW Export Method · Jan 2025')",
-  "portal_notes": "2-4 sentences: what worked, what failed, where the export button is, any quirks of this portal",
+  "title": "Short descriptive title including outcome (e.g., 'Maryland MD-VIEW · ${outcomeTag} · ${new Date().toLocaleDateString()}')",
+  "portal_notes": "2-4 sentences: what worked, what failed, what to do differently next time",
   "worked_selectors": [{"action": "DOWNLOAD", "selector": "button:has-text('Save CSV File')", "context": "appears below results table after search"}],
   "failed_selectors": [{"selector": "...", "why": "..."}],
   "cross_site_pattern": "Optional: any general pattern observed that applies across government portals (or null)",
@@ -242,7 +249,7 @@ Write a concise field note that will help you (or future runs) navigate this por
         title:         learning.title,
         category:      "Portal Navigation",
         jurisdiction:  "All",
-        priority:      success ? 75 : 40,
+        priority:      success ? 75 : 55,  // Failed runs still valuable — higher than original 40
         triggers:      [],
         content,
         embedding,
@@ -251,7 +258,7 @@ Write a concise field note that will help you (or future runs) navigate this por
         agent_id:      "brent",
         source:        "agent",
         steps_taken:   steps_taken || null,
-        teaching_note: url, // store URL in teaching_note for retrieval filtering
+        teaching_note: `${url}|${success ? "success" : "failed"}`, // url|outcome for retrieval and display
       };
 
       const upsertRes = await fetch(
