@@ -671,6 +671,268 @@ export default function NIGPAnalyzer() {
     </div>
   );
 
+  // ── LANDING / FETCH SCREENS (full-page, no sidebar) ─────────────────────────
+  if(!data) {
+    const wfAdmin = (
+      <div onClick={()=>window.open("/admin","_blank")} style={{width:130,flexShrink:0,flexGrow:0,padding:"11px 12px 10px",background:"#2a2016",borderLeft:`3px solid ${T.brass}`,display:"flex",flexDirection:"column",gap:3,cursor:"pointer"}}>
+        <div style={{fontFamily:mono,fontSize:"8.5px",color:`${T.brass}88`,letterSpacing:1,fontWeight:500}}>⚙</div>
+        <div style={{fontFamily:display,fontSize:11,fontWeight:600,color:`${T.brassLight}AA`,lineHeight:1.3,fontStyle:"italic"}}>Admin Options</div>
+        <div style={{fontFamily:mono,fontSize:"7.5px",color:`${T.brass}55`,marginTop:2,letterSpacing:0.5}}>Build AI Analyst Team</div>
+      </div>
+    );
+    const Workflow = () => (
+      <div style={{display:"flex",alignItems:"stretch",marginBottom:28,border:`1px solid ${T.line}`,background:T.card,overflow:"hidden"}}>
+        {[{n:"01",l:"Load Data",active:true},{n:"02",l:"Map Columns & Fields"},{n:"03",l:"Auto-Analyze"},{n:"04",l:"Strategic Action Items",last:true}].map(s=>(
+          <div key={s.n} style={{flex:1,padding:"11px 12px 10px",position:"relative",display:"flex",flexDirection:"column",gap:3,background:s.active?T.navy:T.card,borderRight:s.last?"none":`1px solid ${T.line}`}}>
+            <div style={{fontFamily:mono,fontSize:"8.5px",color:s.active?"rgba(255,255,255,0.4)":T.muted,letterSpacing:1,fontWeight:500}}>{s.n}</div>
+            <div style={{fontFamily:display,fontSize:11,fontWeight:600,color:s.active?T.brassLight:T.navyMid,lineHeight:1.3}}>{s.l}</div>
+            {!s.last&&<span style={{position:"absolute",right:-7,top:"50%",transform:"translateY(-50%)",zIndex:2,fontSize:8,color:s.active?"rgba(255,255,255,0.25)":T.line,pointerEvents:"none"}}>▶</span>}
+          </div>
+        ))}
+        <div style={{width:8,flexShrink:0,background:T.paperDeep,borderLeft:`1px solid ${T.line}`}}/>
+        {wfAdmin}
+      </div>
+    );
+
+    // ── RUNNING SCREEN (full viewport) ──────────────────────────────────────
+    if(fetchScreen==="running") return (
+      <div style={{minHeight:"100vh",background:T.paperDeep,fontFamily:body,color:T.ink,display:"flex",flexDirection:"column"}}>
+        <style>{GLOBAL_STYLE}</style>
+        {/* Top bar */}
+        <div style={{background:T.navy,borderBottom:`2px solid ${T.brass}`,padding:"10px 20px",display:"flex",alignItems:"center",gap:0,flexShrink:0,flexWrap:"nowrap"}}>
+          <div style={{flexShrink:0,marginRight:20}}>
+            <div style={{fontFamily:display,fontSize:14,fontWeight:600,color:T.brassLight}}>State Fetch — {FETCH_STATES.find(s=>s.key===fetchState)?.name} · {FETCH_STATES.find(s=>s.key===fetchState)?.portal}</div>
+            <div style={{fontFamily:mono,fontSize:"9px",color:"rgba(255,255,255,0.35)",letterSpacing:0.5,marginTop:2}}>{fetchDateFrom} → {fetchDateTo} · claude-sonnet-4-5 · Playwright</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",flex:1,overflow:"hidden"}}>
+            {["Load Data","Map Fields","Auto-Analyze","Strategy"].map((s,i,arr)=>(
+              <span key={s}>
+                <span style={{fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"3px 8px",color:i===0?T.brassLight:"rgba(255,255,255,0.25)",fontWeight:i===0?600:400,position:"relative"}}>
+                  {s}
+                  {i===0&&<span style={{position:"absolute",bottom:-1,left:8,right:8,height:1.5,background:T.brass,display:"block"}}/>}
+                </span>
+                {i<arr.length-1&&<span style={{color:"rgba(255,255,255,0.12)",fontSize:9}}>›</span>}
+              </span>
+            ))}
+            <span style={{fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"3px 8px",color:"rgba(182,135,58,0.35)",borderLeft:"2px solid rgba(182,135,58,0.2)",marginLeft:4,fontStyle:"italic"}}>⚙ Admin / AI Team</span>
+          </div>
+        </div>
+        {/* Stop bar */}
+        {fetchRunning&&(
+          <div style={{background:"#7f1d1d",borderBottom:"2px solid #ef4444",padding:"7px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+            <div style={{fontSize:12,color:"#fff",fontWeight:600,display:"flex",alignItems:"center",gap:7}}>
+              <span style={{width:7,height:7,borderRadius:"50%",background:"#ef4444",display:"inline-block",flexShrink:0}}/>
+              Agent is running — click Stop to halt at any time
+            </div>
+            <button onClick={stopFetchAgent} style={{background:T.red||"#c0392b",color:"#fff",border:"none",padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:body}}>⬛ Stop Agent</button>
+          </div>
+        )}
+        {/* Split pane */}
+        <div style={{display:"flex",flex:1,overflow:"hidden",minHeight:0}}>
+          {/* Event pane */}
+          <div style={{width:310,flexShrink:0,background:T.card,borderRight:`1px solid ${T.line}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+            <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+              <span style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:2,color:T.muted,fontWeight:500}}>Event Log</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontFamily:mono,fontSize:"9px",color:T.brass,fontWeight:600}}>{fetchEvents.length} events</span>
+                {(!fetchRunning||fetchStopped||fetchComplete)&&(
+                  <button onClick={()=>setFetchScreen("configure")} style={{fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:1,color:T.muted,background:"none",border:`1px solid ${T.line}`,padding:"2px 8px",cursor:"pointer"}}>← Back</button>
+                )}
+              </div>
+            </div>
+            <div ref={fetchListRef} style={{flex:1,overflowY:"auto",padding:0}}>
+              {fetchEvents.map((ev,idx)=>{
+                const act=ev.action?.toUpperCase()||ev.type?.toUpperCase()||"";
+                const bg=ACTION_COLORS_FETCH[act]||"rgba(120,109,82,0.05)";
+                const tc=ACTION_TEXT_COLORS_FETCH[act]||T.muted;
+                const isError=ev.type==="error"||ev.type==="stuck"||ev.type==="action_error";
+                const isComplete=ev.type==="downloaded"||ev.type==="complete";
+                const isStopped=ev.type==="stopped";
+                const borderLeft=isError?`2.5px solid ${T.flag}`:isComplete?`2.5px solid ${T.moss}`:`2.5px solid transparent`;
+                return(
+                  <div key={idx} onClick={()=>{fetchSelectedEventRef.current=idx;}}
+                    style={{padding:"9px 12px",borderBottom:`1px solid ${T.lineSoft}`,cursor:"pointer",borderLeft,paddingLeft:isError||isComplete||isStopped?"9.5px":"12px",background:isError?`rgba(168,51,25,0.04)`:isComplete?`rgba(0,135,90,0.04)`:isStopped?`rgba(120,109,82,0.04)`:"transparent"}}>
+                    <div style={{fontFamily:mono,fontSize:"8px",color:T.muted,marginBottom:4}}>#{String(idx+1).padStart(2,"0")} · {act}{ev.timestamp?` · ${new Date(ev.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`:""}</div>
+                    {act&&<span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"1px 5px",fontWeight:600,background:bg,color:tc,marginBottom:5}}>{act}</span>}
+                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45}}>{ev.narration}</div>
+                    {ev.reasoning&&<div style={{marginTop:5,fontSize:"10.5px",color:T.muted,lineHeight:1.5,fontStyle:"italic",borderLeft:`2px solid ${T.lineSoft}`,paddingLeft:6}}>{ev.reasoning}</div>}
+                    {ev.target&&<div style={{marginTop:4,fontFamily:mono,fontSize:"8.5px",color:"rgba(45,111,181,0.7)"}}>target: {String(ev.target).slice(0,80)}</div>}
+                    {ev.value&&<div style={{fontFamily:mono,fontSize:"8.5px",color:`rgba(0,135,90,0.8)`}}>value: "{String(ev.value).slice(0,60)}"</div>}
+                  </div>
+                );
+              })}
+              {fetchComplete?.success&&(
+                <>
+                  <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.lineSoft}`,borderLeft:`2.5px solid ${T.brass}`,paddingLeft:"9.5px",background:`rgba(182,135,58,0.05)`}}>
+                    <div style={{fontFamily:mono,fontSize:"8px",color:T.brass,marginBottom:4}}>⬇ Available Action</div>
+                    <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brass,marginBottom:5}}>Download</span>
+                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>{fetchComplete.fileName} is ready to save to your computer.</div>
+                    <button onClick={()=>window.open(`${fetchApiBase}/agent/download?file=${encodeURIComponent(fetchComplete.filePath)}`,"_blank")} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,color:T.navy,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>↓ Save CSV File</button>
+                  </div>
+                  <div style={{padding:"9px 12px",borderLeft:`2.5px solid ${T.brass}`,paddingLeft:"9.5px",background:`rgba(182,135,58,0.05)`,borderTop:`2px solid ${T.brass}`}}>
+                    <div style={{fontFamily:mono,fontSize:"8px",color:T.brass,marginBottom:4}}>→ Next Step</div>
+                    <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brassDeep,marginBottom:5}}>Analyze</span>
+                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>Data is ready. Proceed to field mapping and analysis.</div>
+                    <button onClick={handleFetchAnalyze} style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.brassLight,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>Map Fields → Analyze ▶</button>
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Thinking footer */}
+            <div style={{flexShrink:0,padding:"10px 14px",borderTop:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"flex-start",gap:8,minHeight:52}}>
+              {fetchRunning&&[0,0.15,0.3].map((d,i)=>(
+                <span key={i} style={{display:"inline-block",width:4,height:4,borderRadius:"50%",background:"#2d6fb5",animation:`dbounce 1.2s ${d}s infinite`,flexShrink:0,marginTop:5}}/>
+              ))}
+              {!fetchRunning&&<span style={{fontSize:14,flexShrink:0,marginTop:1}}>{fetchComplete?.success?"✓":fetchStopped?"◼":"⚠"}</span>}
+              <div style={{fontSize:11,lineHeight:1.5,flex:1,color:fetchComplete?.success?T.moss:fetchStopped?T.muted:fetchRunning?T.mutedDeep:T.flag}}>{fetchThinkingText||"Waiting…"}</div>
+            </div>
+          </div>
+          {/* Screenshot pane */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",background:T.navyDeep||"#0b1929",overflow:"hidden"}}>
+            <div style={{background:"rgba(0,0,0,0.45)",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"0 12px",height:30,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
+              {["#e85d4a","#f5a623","#3eca7f"].map(c=><div key={c} style={{width:9,height:9,borderRadius:"50%",background:c}}/>)}
+              <div style={{flex:1,background:"rgba(255,255,255,0.05)",borderRadius:2,height:16,display:"flex",alignItems:"center",padding:"0 10px",fontFamily:mono,fontSize:"8px",color:"rgba(255,255,255,0.25)",overflow:"hidden",whiteSpace:"nowrap",marginLeft:6}}>
+                {FETCH_STATES.find(s=>s.key===fetchState)?.url||"about:blank"}
+              </div>
+            </div>
+            <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {fetchEvents.length>0&&fetchEvents[fetchEvents.length-1]?.screenshot
+                ? <img src={`data:image/jpeg;base64,${fetchEvents[fetchEvents.length-1].screenshot}`} alt="Browser screenshot" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top",display:"block"}}/>
+                : <div style={{textAlign:"center",padding:24}}>
+                    <div style={{fontSize:28,marginBottom:10,opacity:0.15}}>🖥</div>
+                    <div style={{fontFamily:mono,fontSize:10,color:"rgba(255,255,255,0.15)",letterSpacing:0.5,lineHeight:1.9}}>
+                      {fetchRunning?"[ LIVE SCREENSHOT STREAM ]":"[ Waiting for agent to start ]"}<br/>
+                      Click any event in the left panel<br/>to view that step's screenshot
+                    </div>
+                  </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // ── CONFIGURE SCREEN ────────────────────────────────────────────────────
+    if(fetchScreen==="configure") return (
+      <div style={{minHeight:"100vh",background:T.paperDeep,fontFamily:body,color:T.ink}}>
+        <style>{GLOBAL_STYLE}</style>
+        <Header/>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"32px 24px 80px"}}>
+          <div style={{marginBottom:24}}>
+            <div style={{fontFamily:mono,fontSize:"10px",letterSpacing:3,textTransform:"uppercase",color:T.brass,fontWeight:500,marginBottom:10}}>Roadmap Venture · Procurement Intelligence</div>
+            <div style={{fontFamily:display,fontSize:32,fontWeight:700,color:T.navy,lineHeight:1.15,letterSpacing:"-0.5px"}}>Government Spend Analyzer</div>
+          </div>
+          <Workflow/>
+          <div style={{background:T.card,border:`1.5px solid ${T.brass}`,overflow:"hidden"}}>
+            <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,padding:"14px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.brassLight}}>Configure State Data Fetch</div>
+              <button onClick={()=>setFetchScreen("landing")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
+            </div>
+            <div style={{padding:24}}>
+              <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:10,fontWeight:500}}>Select state portal</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:22}}>
+                {FETCH_STATES.map(s=>(
+                  <div key={s.key} onClick={()=>s.live&&setFetchState(s.key)}
+                    style={{background:fetchState===s.key?"#d4e4f5":T.cardAlt,border:`1.5px solid ${fetchState===s.key?"#2d6fb5":T.line}`,padding:"11px 12px 10px",cursor:s.live?"pointer":"not-allowed",opacity:s.live?1:0.38,position:"relative",display:"flex",flexDirection:"column",gap:2,transition:"border-color 0.15s"}}>
+                    <span style={{position:"absolute",top:7,right:8,fontFamily:mono,fontSize:"7.5px",letterSpacing:1,textTransform:"uppercase",padding:"1px 5px",fontWeight:600,color:s.live?T.moss:T.muted,background:s.live?"rgba(90,117,56,0.1)":"rgba(120,109,82,0.1)",border:`1px solid ${s.live?"rgba(90,117,56,0.3)":"rgba(120,109,82,0.25)"}`}}>{s.live?"Live":"Soon"}</span>
+                    <span style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.navy}}>{s.name}</span>
+                    <span style={{fontFamily:mono,fontSize:"8.5px",color:T.muted,marginTop:2}}>{s.portal}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:10,fontWeight:500}}>Date range</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:22}}>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  <label style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.mutedDeep,fontWeight:500}}>Fiscal Year</label>
+                  <select value={fetchYear} onChange={e=>setFetchYear(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:body,fontSize:13,color:T.navy,appearance:"none"}}>
+                    {(FETCH_STATES.find(s=>s.key===fetchState)?.years||["2025"]).map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  <label style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.mutedDeep,fontWeight:500}}>From Date</label>
+                  <input type="text" value={fetchDateFrom} onChange={e=>setFetchDateFrom(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:body,fontSize:13,color:T.navy}}/>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  <label style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.mutedDeep,fontWeight:500}}>To Date</label>
+                  <input type="text" value={fetchDateTo} onChange={e=>setFetchDateTo(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:body,fontSize:13,color:T.navy}}/>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,paddingTop:4}}>
+                <div>
+                  <div style={{fontSize:"11.5px",color:T.muted,lineHeight:1.65}}>Agent will navigate the portal, fill date fields,<br/>and download the CSV — autonomously.</div>
+                  <button onClick={()=>setFetchScreen("landing")} style={{fontFamily:mono,fontSize:"10px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.muted,background:"none",border:"none",cursor:"pointer",padding:0,marginTop:7,display:"block"}}>← Cancel, go back</button>
+                </div>
+                <button onClick={runFetchAgent} style={{background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff",border:"none",padding:"13px 30px",cursor:"pointer",fontFamily:display,fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>⇲ Run Fetch Agent</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // ── LANDING SCREEN ──────────────────────────────────────────────────────
+    const scCorners = (
+      <>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",top:4,left:4,color:T.brass}}><path d="M0 0h3.5v1H1v2.5H0z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",top:4,right:4,color:T.brass}}><path d="M9 0H5.5v1H8v2.5H9z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",bottom:4,left:4,color:T.brass}}><path d="M0 9h3.5V8H1V5.5H0z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",bottom:4,right:4,color:T.brass}}><path d="M9 9H5.5V8H8V5.5H9z"/></svg>
+      </>
+    );
+    return (
+      <div style={{minHeight:"100vh",background:T.paperDeep,fontFamily:body,color:T.ink}}>
+        <style>{GLOBAL_STYLE}</style>
+        <Header/>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"32px 24px 80px",position:"relative",zIndex:1}}>
+          {/* Eyebrow + title + subtitle */}
+          <div style={{marginBottom:30}}>
+            <div style={{fontFamily:mono,fontSize:"10px",letterSpacing:3,textTransform:"uppercase",color:T.brass,fontWeight:500,marginBottom:10}}>Roadmap Venture · Procurement Intelligence</div>
+            <div style={{fontFamily:display,fontSize:32,fontWeight:700,color:T.navy,lineHeight:1.15,letterSpacing:"-0.5px",marginBottom:8}}>Government Spend Analyzer</div>
+            <p style={{fontSize:"13.5px",color:T.muted,lineHeight:1.65,maxWidth:580}}>Load procurement data from a demo dataset, a live state portal, or your own file — then get instant vendor risk analysis, category intelligence, and an AI-generated executive briefing.</p>
+          </div>
+          <Workflow/>
+          <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:12,fontWeight:500}}>Choose your data source</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            {/* 1 — Austin Demo */}
+            <div style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",cursor:"pointer",position:"relative",display:"flex",flexDirection:"column",transition:"border-color 0.18s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=T.brass} onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
+              {scCorners}
+              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:`1px solid ${T.moss}`,color:T.moss,background:"rgba(90,117,56,0.07)",marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Demo dataset</span>
+              <span style={{fontSize:24,marginBottom:10,display:"block"}}>🏙</span>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>City of Austin</div>
+              <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>Load Austin's FY2025 public procurement data instantly. See the full analysis workflow without uploading anything.</div>
+              <button onClick={async()=>{setLoading(true);setError("");try{const res=await fetch("/Austin_2025Data_.csv");if(!res.ok)throw new Error("Could not load demo file");const blob=await res.blob();const file=new File([blob],"Austin_2025Data_.csv",{type:"text/csv"});processFile(file);}catch(e){setLoading(false);setError("Demo failed to load: "+e.message);}}}
+                style={{marginTop:14,padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,border:"none",cursor:"pointer",alignSelf:"flex-start",background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,color:T.navy}}>▶ Load Demo</button>
+            </div>
+            {/* 2 — Fetch State Data */}
+            <div style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",cursor:"pointer",position:"relative",display:"flex",flexDirection:"column",transition:"border-color 0.18s"}}
+              onClick={()=>setFetchScreen("configure")} onMouseEnter={e=>e.currentTarget.style.borderColor=T.brass} onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
+              {scCorners}
+              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:"1px solid #2d6fb5",color:"#2d6fb5",background:"#d4e4f5",marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Live fetch · AI Agent</span>
+              <span style={{fontSize:24,marginBottom:10,display:"block"}}>🌐</span>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>Fetch State Data</div>
+              <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>AI agent navigates a government portal, fills forms, and downloads spend data automatically. No manual export required.</div>
+              <button style={{marginTop:14,padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,border:"none",cursor:"pointer",alignSelf:"flex-start",background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff"}}>⇲ Fetch Live Data</button>
+            </div>
+            {/* 3 — Upload Your Own File */}
+            <div className="upload-blink" style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",position:"relative",display:"flex",flexDirection:"column"}}>
+              {scCorners}
+              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:`1px solid ${T.brass}`,color:T.brassDeep,background:`rgba(182,135,58,0.06)`,marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Your data</span>
+              <span style={{fontSize:24,marginBottom:10,display:"block"}}>📂</span>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>Upload Your Own File</div>
+              <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>Drop or select a procurement CSV from your system. Supports any column format — fields are mapped automatically.</div>
+              <div onClick={()=>hiddenInputRef.current.click()} onDrop={e=>{e.preventDefault();processFile(e.dataTransfer.files[0]);}} onDragOver={e=>e.preventDefault()}>
+                <div style={{marginTop:14,display:"inline-block",padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,cursor:"pointer",background:"transparent",border:`1.5px solid ${T.brass}`,color:T.brassDeep}}>↑ Upload CSV</div>
+                <input ref={hiddenInputRef} type="file" accept=".csv" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
+              </div>
+            </div>
+          </div>
+          {error&&<div style={{marginTop:14,background:`${T.flag}10`,border:`1px solid ${T.flag}44`,padding:"12px 16px",color:T.flag,fontSize:14}}>⚠ {error}</div>}
+        </div>
+      </div>
+    );
+  }
+
   // ── MAIN ANALYZE STAGE ───────────────────────────────────────────────────────
   const vc = data?.vendorConc;
   const localAreaName = localApplied ? localApplied.value : "Local Area";
@@ -731,274 +993,8 @@ export default function NIGPAnalyzer() {
         {/* ── CONTENT AREA ── */}
         <div style={{flex:1,overflowY:"auto",padding:"22px 26px",background:T.paperDeep}}>
 
-          {/* ── NO DATA: Landing ── */}
-          {!data&&(
-            <div style={{maxWidth:900,margin:"0 auto",width:"100%"}}>
-              {/* WORKFLOW BREADCRUMB */}
-              <div style={{display:"flex",alignItems:"stretch",marginBottom:28,border:`1px solid ${T.line}`,background:T.card,overflow:"hidden"}}>
-                {[
-                  {n:"01",l:"Load Data",active:true},
-                  {n:"02",l:"Map Columns & Fields"},
-                  {n:"03",l:"Auto-Analyze"},
-                  {n:"04",l:"Strategic Action Items",last:true},
-                ].map((s,i)=>(
-                  <div key={s.n} style={{flex:1,padding:"11px 12px 10px",position:"relative",display:"flex",flexDirection:"column",gap:3,background:s.active?T.navy:T.card,borderRight:s.last?"none":`1px solid ${T.line}`}}>
-                    <div style={{fontFamily:mono,fontSize:"8.5px",color:s.active?"rgba(255,255,255,0.4)":T.muted,letterSpacing:1,fontWeight:500}}>{s.n}</div>
-                    <div style={{fontFamily:display,fontSize:11,fontWeight:600,color:s.active?T.brassLight:T.navyMid,lineHeight:1.3}}>{s.l}</div>
-                    {!s.last&&<span style={{position:"absolute",right:-7,top:"50%",transform:"translateY(-50%)",zIndex:2,fontSize:8,color:s.active?"rgba(255,255,255,0.25)":T.line,pointerEvents:"none"}}>▶</span>}
-                  </div>
-                ))}
-                {/* Gap */}
-                <div style={{width:8,flexShrink:0,background:T.paperDeep,borderLeft:`1px solid ${T.line}`}}/>
-                {/* Admin Options */}
-                <div onClick={()=>window.open("/admin","_blank")} style={{width:130,flexShrink:0,padding:"11px 12px 10px",background:"#2a2016",borderLeft:`3px solid ${T.brass}`,display:"flex",flexDirection:"column",gap:3,cursor:"pointer"}}>
-                  <div style={{fontFamily:mono,fontSize:"8.5px",color:`${T.brass}88`,letterSpacing:1,fontWeight:500}}>⚙</div>
-                  <div style={{fontFamily:display,fontSize:11,fontWeight:600,color:`${T.brassLight}AA`,lineHeight:1.3,fontStyle:"italic"}}>Admin Options</div>
-                  <div style={{fontFamily:mono,fontSize:"7.5px",color:`${T.brass}55`,marginTop:2,letterSpacing:0.5}}>Build AI Analyst Team</div>
-                </div>
-              </div>
 
-              {/* SOURCE CARDS */}
-              <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:12,fontWeight:500}}>Choose your data source</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-
-                {/* 1 — Austin Demo */}
-                <div style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",cursor:"pointer",position:"relative",display:"flex",flexDirection:"column",transition:"border-color 0.18s"}}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor=T.brass}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
-                  <Corners/>
-                  <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:`1px solid ${T.moss}`,color:T.moss,background:`rgba(90,117,56,0.07)`,marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Demo dataset</span>
-                  <span style={{fontSize:24,marginBottom:10,display:"block"}}>🏙</span>
-                  <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>City of Austin</div>
-                  <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>Load Austin's FY2025 public procurement data instantly. See the full analysis workflow without uploading anything.</div>
-                  <button onClick={async()=>{
-                    setLoading(true);setError("");
-                    try{
-                      const res=await fetch("/Austin_2025Data_.csv");
-                      if(!res.ok) throw new Error("Could not load demo file");
-                      const blob=await res.blob();
-                      const file=new File([blob],"Austin_2025Data_.csv",{type:"text/csv"});
-                      processFile(file);
-                    }catch(e){setLoading(false);setError("Demo failed to load: "+e.message);}
-                  }} style={{marginTop:14,padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,border:"none",cursor:"pointer",alignSelf:"flex-start",background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,color:T.navy}}>
-                    ▶ Load Demo
-                  </button>
-                </div>
-
-                {/* 2 — Fetch State Data */}
-                <div style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",cursor:"pointer",position:"relative",display:"flex",flexDirection:"column",transition:"border-color 0.18s"}}
-                  onClick={()=>setFetchScreen("configure")}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor=T.brass}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
-                  <Corners/>
-                  <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:"1px solid #2d6fb5",color:"#2d6fb5",background:"#d4e4f5",marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Live fetch · AI Agent</span>
-                  <span style={{fontSize:24,marginBottom:10,display:"block"}}>🌐</span>
-                  <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>Fetch State Data</div>
-                  <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>AI agent navigates a government portal, fills forms, and downloads spend data automatically. No manual export required.</div>
-                  <button style={{marginTop:14,padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,border:"none",cursor:"pointer",alignSelf:"flex-start",background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff"}}>
-                    ⇲ Fetch Live Data
-                  </button>
-                </div>
-
-                {/* 3 — Upload Your Own File */}
-                <div className="upload-blink" style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",cursor:"pointer",position:"relative",display:"flex",flexDirection:"column"}}>
-                  <Corners/>
-                  <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:`1px solid ${T.brass}`,color:T.brassDeep,background:`rgba(182,135,58,0.06)`,marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Your data</span>
-                  <span style={{fontSize:24,marginBottom:10,display:"block"}}>📂</span>
-                  <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>Upload Your Own File</div>
-                  <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>Drop or select a procurement CSV from your system. Supports any column format — fields are mapped automatically.</div>
-                  <div onClick={()=>hiddenInputRef.current.click()}
-                    onDrop={e=>{e.preventDefault();processFile(e.dataTransfer.files[0]);}}
-                    onDragOver={e=>{e.preventDefault();}}>
-                    <div style={{marginTop:14,display:"inline-block",padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,cursor:"pointer",background:"transparent",border:`1.5px solid ${T.brass}`,color:T.brassDeep}}>↑ Upload CSV</div>
-                    <input ref={hiddenInputRef} type="file" accept=".csv" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
-                  </div>
-                </div>
-
-              </div>
-              {error&&<div style={{marginTop:14,background:`${T.flag}10`,border:`1px solid ${T.flag}44`,padding:"12px 16px",color:T.flag,fontSize:14}}>⚠ {error}</div>}
-
-              {/* ── FETCH CONFIGURE ── */}
-              {fetchScreen==="configure"&&(
-                <div style={{marginTop:14,background:T.card,border:`1.5px solid ${T.brass}`,overflow:"hidden"}}>
-                  <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,padding:"14px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                    <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.brassLight}}>Configure State Data Fetch</div>
-                    <button onClick={()=>setFetchScreen("landing")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
-                  </div>
-                  <div style={{padding:24}}>
-                    {/* State selector */}
-                    <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:10,fontWeight:500}}>Select state portal</div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:22}}>
-                      {FETCH_STATES.map(s=>(
-                        <div key={s.key} onClick={()=>s.live&&setFetchState(s.key)}
-                          style={{background:fetchState===s.key?"#d4e4f5":T.cardAlt,border:`1.5px solid ${fetchState===s.key?"#2d6fb5":T.line}`,padding:"11px 12px 10px",cursor:s.live?"pointer":"not-allowed",opacity:s.live?1:0.38,position:"relative",display:"flex",flexDirection:"column",gap:2,transition:"border-color 0.15s"}}>
-                          <span style={{position:"absolute",top:7,right:8,fontFamily:mono,fontSize:"7.5px",letterSpacing:1,textTransform:"uppercase",padding:"1px 5px",fontWeight:600,color:s.live?T.moss:T.muted,background:s.live?"rgba(90,117,56,0.1)":"rgba(120,109,82,0.1)",border:`1px solid ${s.live?"rgba(90,117,56,0.3)":"rgba(120,109,82,0.25)"}`}}>{s.live?"Live":"Soon"}</span>
-                          <span style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.navy}}>{s.name}</span>
-                          <span style={{fontFamily:mono,fontSize:"8.5px",color:T.muted,marginTop:2}}>{s.portal}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Date range */}
-                    <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:10,fontWeight:500}}>Date range</div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:22}}>
-                      {[
-                        {label:"Fiscal Year",type:"select",options:FETCH_STATES.find(s=>s.key===fetchState)?.years||["2025"],value:fetchYear,onChange:setFetchYear},
-                        {label:"From Date",type:"text",value:fetchDateFrom,onChange:setFetchDateFrom},
-                        {label:"To Date",type:"text",value:fetchDateTo,onChange:setFetchDateTo},
-                      ].map(f=>(
-                        <div key={f.label} style={{display:"flex",flexDirection:"column",gap:5}}>
-                          <label style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.mutedDeep,fontWeight:500}}>{f.label}</label>
-                          {f.type==="select"?(
-                            <select value={f.value} onChange={e=>f.onChange(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:"Inter, sans-serif",fontSize:13,color:T.navy,appearance:"none"}}>
-                              {f.options.map(y=><option key={y} value={y}>{y}</option>)}
-                            </select>
-                          ):(
-                            <input type="text" value={f.value} onChange={e=>f.onChange(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:"Inter, sans-serif",fontSize:13,color:T.navy}}/>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {/* Launch row */}
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
-                      <div>
-                        <div style={{fontSize:"11.5px",color:T.muted,lineHeight:1.65}}>Agent will navigate the portal, fill date fields,<br/>and download the CSV — autonomously.</div>
-                        <button onClick={()=>setFetchScreen("landing")} style={{fontFamily:mono,fontSize:"10px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.muted,background:"none",border:"none",cursor:"pointer",padding:0,marginTop:7}}>← Cancel, go back</button>
-                      </div>
-                      <button onClick={runFetchAgent} style={{background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff",border:"none",padding:"13px 30px",cursor:"pointer",fontFamily:display,fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
-                        ⇲ Run Fetch Agent
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── FETCH RUNNING ── */}
-              {fetchScreen==="running"&&(
-                <div style={{marginTop:14,border:`1.5px solid ${T.brass}`,overflow:"hidden",background:T.card}}>
-                  {/* Running topbar */}
-                  <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,padding:"10px 18px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-                    <div>
-                      <div style={{fontFamily:display,fontSize:14,fontWeight:600,color:T.brassLight}}>
-                        State Fetch — {FETCH_STATES.find(s=>s.key===fetchState)?.name} · {FETCH_STATES.find(s=>s.key===fetchState)?.portal}
-                      </div>
-                      <div style={{fontFamily:mono,fontSize:"9px",color:"rgba(255,255,255,0.35)",letterSpacing:0.5,marginTop:2}}>{fetchDateFrom} → {fetchDateTo} · claude-sonnet-4-5 · Playwright</div>
-                    </div>
-                    {fetchRunning&&(
-                      <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6,fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:1,color:"#3eca7f",background:"rgba(62,202,127,0.1)",border:"1px solid rgba(62,202,127,0.3)",padding:"4px 9px"}}>
-                        <span style={{width:6,height:6,borderRadius:"50%",background:"#3eca7f",display:"inline-block",animation:"pdot 1.2s ease-in-out infinite"}}/>
-                        Running
-                      </div>
-                    )}
-                  </div>
-                  {/* Emergency stop bar */}
-                  {fetchRunning&&(
-                    <div style={{background:"#7f1d1d",borderBottom:"2px solid #ef4444",padding:"7px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                      <div style={{fontSize:12,color:"#fff",fontWeight:600,display:"flex",alignItems:"center",gap:7}}>
-                        <span style={{width:7,height:7,borderRadius:"50%",background:"#ef4444",display:"inline-block"}}/>
-                        Agent is running — click Stop to halt at any time
-                      </div>
-                      <button onClick={stopFetchAgent} style={{background:"#c0392b",color:"#fff",border:"none",padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>⬛ Stop Agent</button>
-                    </div>
-                  )}
-                  {/* Split pane: events left, screenshot right */}
-                  <div style={{display:"flex",height:480}}>
-                    {/* Event pane */}
-                    <div style={{width:310,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${T.line}`,background:T.card}}>
-                      {/* Header */}
-                      <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-                        <span style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:2,color:T.muted,fontWeight:500}}>Event Log</span>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span style={{fontFamily:mono,fontSize:"9px",color:T.brass,fontWeight:600}}>{fetchEvents.length} events</span>
-                          {(!fetchRunning||fetchStopped||fetchComplete)&&(
-                            <button onClick={()=>setFetchScreen("configure")} style={{fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:1,color:T.muted,background:"none",border:`1px solid ${T.line}`,padding:"2px 8px",cursor:"pointer"}}>← Back</button>
-                          )}
-                        </div>
-                      </div>
-                      {/* Event list — oldest top, newest bottom, auto-scroll */}
-                      <div ref={fetchListRef} style={{flex:1,overflowY:"auto",padding:0}}>
-                        {fetchEvents.map((ev,idx)=>{
-                          const act=ev.action?.toUpperCase()||ev.type?.toUpperCase();
-                          const bg=ACTION_COLORS_FETCH[act]||"rgba(120,109,82,0.05)";
-                          const tc=ACTION_TEXT_COLORS_FETCH[act]||T.muted;
-                          const isError=ev.type==="error"||ev.type==="stuck"||ev.type==="action_error";
-                          const isComplete=ev.type==="downloaded"||ev.type==="complete";
-                          const isStopped=ev.type==="stopped";
-                          const borderColor=isError?"#c0392b":isComplete?"#00875a":isStopped?T.muted:fetchSelectedEventRef.current===idx?"#2d6fb5":"transparent";
-                          return(
-                            <div key={idx}
-                              onClick={()=>{fetchSelectedEventRef.current=idx;}}
-                              style={{padding:"9px 12px",borderBottom:`1px solid ${T.lineSoft}`,cursor:"pointer",borderLeft:`2.5px solid ${borderColor}`,paddingLeft:borderColor!=="transparent"?"9.5px":"12px",background:isError?`rgba(168,51,25,0.04)`:isComplete?`rgba(0,135,90,0.04)`:isStopped?`rgba(120,109,82,0.04)`:"transparent",transition:"background 0.1s"}}>
-                              <div style={{fontFamily:mono,fontSize:"8px",color:T.muted,marginBottom:4}}>#{String(idx+1).padStart(2,"0")} · {act} {ev.timestamp?`· ${new Date(ev.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`:""}
-                              </div>
-                              {act&&<span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"1px 5px",fontWeight:600,background:bg,color:tc,marginBottom:5}}>{act}</span>}
-                              <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45}}>{ev.narration}</div>
-                              {ev.reasoning&&<div style={{marginTop:5,fontSize:"10.5px",color:T.muted,lineHeight:1.5,fontStyle:"italic",borderLeft:`2px solid ${T.lineSoft}`,paddingLeft:6}}>{ev.reasoning}</div>}
-                              {ev.target&&<div style={{marginTop:4,fontFamily:mono,fontSize:"8.5px",color:"rgba(45,111,181,0.7)"}}>target: {String(ev.target).slice(0,80)}</div>}
-                              {ev.value&&<div style={{fontFamily:mono,fontSize:"8.5px",color:"rgba(0,135,90,0.8)"}}>value: "{String(ev.value).slice(0,60)}"</div>}
-                            </div>
-                          );
-                        })}
-                        {/* Action items on completion */}
-                        {fetchComplete?.success&&(
-                          <>
-                            <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.lineSoft}`,borderLeft:`2.5px solid ${T.brass}`,paddingLeft:"9.5px",background:`rgba(182,135,58,0.05)`}}>
-                              <div style={{fontFamily:mono,fontSize:"8px",color:T.brass,marginBottom:4}}>⬇ Available Action</div>
-                              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brass,marginBottom:5}}>Download</span>
-                              <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>{fetchComplete.fileName} is ready to save to your computer.</div>
-                              <button onClick={()=>window.open(`${fetchApiBase}/agent/download?file=${encodeURIComponent(fetchComplete.filePath)}`,"_blank")} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,color:T.navy,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>↓ Save CSV File</button>
-                            </div>
-                            <div style={{padding:"9px 12px",borderLeft:`2.5px solid ${T.brass}`,paddingLeft:"9.5px",background:`rgba(182,135,58,0.05)`,borderTop:`2px solid ${T.brass}`}}>
-                              <div style={{fontFamily:mono,fontSize:"8px",color:T.brass,marginBottom:4}}>→ Next Step</div>
-                              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brassDeep,marginBottom:5}}>Analyze</span>
-                              <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>Data is ready. Proceed to field mapping and analysis.</div>
-                              <button onClick={handleFetchAnalyze} style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.brassLight,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>Map Fields → Analyze ▶</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {/* Thinking footer */}
-                      <div style={{flexShrink:0,padding:"10px 14px",borderTop:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"flex-start",gap:8,minHeight:52}}>
-                        {fetchRunning&&(
-                          <div style={{display:"flex",gap:3,flexShrink:0,marginTop:3}}>
-                            {[0,0.15,0.3].map((d,i)=>(
-                              <span key={i} style={{display:"inline-block",width:4,height:4,borderRadius:"50%",background:"#2d6fb5",animation:`dbounce 1.2s ${d}s infinite`}}/>
-                            ))}
-                          </div>
-                        )}
-                        {!fetchRunning&&<span style={{fontSize:14,flexShrink:0,marginTop:1}}>{fetchComplete?.success?"✓":fetchStopped?"◼":"⚠"}</span>}
-                        <div style={{fontSize:11,lineHeight:1.5,flex:1,color:fetchComplete?.success?"#00875a":fetchStopped?T.muted:fetchRunning?T.mutedDeep:T.flag}}>{fetchThinkingText||"Waiting…"}</div>
-                      </div>
-                    </div>
-                    {/* Screenshot pane */}
-                    <div style={{flex:1,display:"flex",flexDirection:"column",background:T.navyDeep||T.navy,overflow:"hidden"}}>
-                      <div style={{background:"rgba(0,0,0,0.45)",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"0 12px",height:30,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
-                        {["#e85d4a","#f5a623","#3eca7f"].map(c=><div key={c} style={{width:9,height:9,borderRadius:"50%",background:c}}/>)}
-                        <div style={{flex:1,background:"rgba(255,255,255,0.05)",borderRadius:2,height:16,display:"flex",alignItems:"center",padding:"0 10px",fontFamily:mono,fontSize:"8px",color:"rgba(255,255,255,0.25)",overflow:"hidden",whiteSpace:"nowrap",marginLeft:6}}>
-                          {FETCH_STATES.find(s=>s.key===fetchState)?.url||"about:blank"}
-                        </div>
-                      </div>
-                      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        {fetchEvents.length>0&&fetchEvents[fetchEvents.length-1]?.screenshot?(
-                          <img src={`data:image/jpeg;base64,${fetchEvents[fetchEvents.length-1].screenshot}`} alt="Browser screenshot" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top",display:"block"}}/>
-                        ):(
-                          <div style={{textAlign:"center",padding:24}}>
-                            <div style={{fontSize:28,marginBottom:10,opacity:0.15}}>🖥</div>
-                            <div style={{fontFamily:mono,fontSize:10,color:"rgba(255,255,255,0.15)",letterSpacing:0.5,lineHeight:1.9}}>
-                              {fetchRunning?"[ LIVE SCREENSHOT STREAM ]":"[ Waiting for agent to start ]"}<br/>
-                              Click any event in the left panel<br/>to view that step's screenshot
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* ── DATA LOADED ── */}
+                    {/* ── DATA LOADED ── */}
           {/* ── DATA LOADED ── */}
           {data&&(
             <>
