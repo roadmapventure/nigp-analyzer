@@ -49,7 +49,15 @@ const AGENTS = [
     salary:175000,  value:200000, hourly:104, reportHrs:5, reportCost:521,
     docs:100, classes:25, chunks:1685, skill:88, situational:35,
     trainable:true,  trainableBy:"NIGP", revenueModel:"Split · 50% NIGP · $260/rpt",
-    quip:'"Next year\'s strategy, not last year\'s report."', color:T.brass,
+    quip:'"Next year's strategy, not last year's report."', color:T.brass,
+  },
+  { id:"brent",   name:"Brent Matthews",       role:"Data Research Specialist",       code:"DR-06", hiredOn:"Mar 2018",
+    trainer:"RMV",  arch:"RAG + Web Agent",     specialty:"Gov't Portal Retrieval · Open Records · Data Acquisition",
+    salary:115000,  value:140000, hourly:60,  reportHrs:1, reportCost:60,
+    docs:0, classes:0, chunks:0, skill:79, situational:40,
+    trainable:true,  trainableBy:"RMV + Self",  revenueModel:"Usage · Per Fetch",
+    quip:'"If it's on a government server, I'll find it."', color:T.moss,
+    isWebAgent:true,
   },
 ];
 
@@ -59,9 +67,11 @@ const AGENT_PRONOUNS = {
   bob:     { subject:"he",  object:"him", possessive:"his" },
   christy: { subject:"she", object:"her", possessive:"her" },
   robyn:   { subject:"she", object:"her", possessive:"her" },
+  brent:   { subject:"he",  object:"him", possessive:"his" },
 };
 
 const CATEGORIES    = ["Compliance","Jurisdiction","Best Practice","Internal","Standards","Methodology","Playbook","Template","Statute"];
+const BRENT_CATEGORIES = ["Portal Navigation","Data Schema","Export Method","Auth Pattern","State Portal","Open Records","Research Method","Data Dictionary"];
 const JURISDICTIONS = ["All","Federal","Texas","California","Florida","New York","Illinois"];
 const FLAG_TRIGGERS = [
   { id:"maverick",      label:"Maverick Spend"   },
@@ -277,6 +287,7 @@ function AgentAvatar({who,size=68,ring=true}){
     bob:   {skin:"#e5c19a",hair:"#5a4a3a",collar:"#2a3a52",extra:"tie",    border:T.moss},
     christy:{skin:"#dba77d",hair:"#2a1a1a",collar:T.brass,  extra:"bob",   border:T.brass},
     robyn: {skin:"#c48b62",hair:"#8a3418",collar:"#5a2f3d",extra:"bun",    border:T.brass},
+    brent: {skin:"#d4a870",hair:"#2c3e2d",collar:"#1a2e1a",extra:"field",  border:T.moss},
   };
   const c=cfg[who]||cfg.chloe;
   const uid=`av-${who}-${Math.random().toString(36).slice(2,7)}`;
@@ -304,7 +315,8 @@ function AgentAvatar({who,size=68,ring=true}){
         <ellipse cx="44" cy="40" rx="2" ry="1" fill="#c47a5a" opacity="0.22"/>
         <path d="M 32 43 Q 36 46 40 43" fill="none" stroke={T.navy} strokeWidth="1.1" strokeLinecap="round"/>
         {c.extra==="tie"&&<><path d="M 34 54 L 38 54 L 40 72 L 32 72 Z" fill={T.brass}/><path d="M 34 54 L 36 58 L 38 54 Z" fill={T.navy}/></>}
-        {(c.extra==="bob"||c.extra==="bun"||c.extra==="glasses")&&<path d="M 26 58 L 36 64 L 46 58" fill="none" stroke={c.border} strokeWidth="1.5" opacity="0.7"/>}
+        {c.extra==="field"&&<><rect x="28" y="52" width="16" height="20" rx="1" fill={T.moss} opacity="0.8"/><rect x="30" y="54" width="12" height="2.5" rx="0.5" fill="#fff" opacity="0.35"/><rect x="30" y="58" width="8" height="2" rx="0.5" fill="#fff" opacity="0.2"/></>}
+        {(c.extra==="bob"||c.extra==="bun"||c.extra==="glasses"||c.extra==="field")&&<path d="M 26 58 L 36 64 L 46 58" fill="none" stroke={c.border} strokeWidth="1.5" opacity="0.7"/>}
       </g>
       {ring&&<circle cx="36" cy="36" r="34.5" fill="none" stroke={c.border} strokeWidth="0.5" strokeDasharray="0.5 2" opacity="0.5"/>}
     </svg>
@@ -359,7 +371,7 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
 
       {/* Bench stats */}
       <div style={{background:T.navy,padding:"10px 20px",marginBottom:20,display:"flex",alignItems:"center",gap:28,borderBottom:`3px solid ${T.brass}`}}>
-        {[["Bench Size","5",T.card],["Annual Salary","$535k",T.brassLight],["Annual Value","$570k",T.mossLight],["Reports / Mo","54",T.card],["Trainable Agents","2",T.brassLight]].map(([k,v,c])=>(
+        {[["Bench Size","6",T.card],["Annual Salary","$650k",T.brassLight],["Annual Value","$710k",T.mossLight],["Reports / Mo","54",T.card],["Trainable Agents","3",T.brassLight]].map(([k,v,c])=>(
           <div key={k}>
             <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1.3,marginBottom:2}}>{k}</div>
             <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:c,fontVariantNumeric:"tabular-nums"}}>{v}</div>
@@ -390,6 +402,7 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
                       {a.trainable?`● YOUR TRAINEE`:`◐ ${a.trainableBy.toUpperCase()} MANAGED`}
                     </span>
                     <span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.brass}10`,color:T.brassDeep,border:`1px solid ${T.brass}35`,letterSpacing:.4}}>{a.arch}</span>
+                    {a.isWebAgent&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.moss}18`,color:T.moss,border:`1px solid ${T.moss}60`,letterSpacing:.4}}>🌐 WEB AGENT</span>}
                   </div>
                 </div>
               </div>
@@ -472,7 +485,7 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
           <div style={{width:64,height:64,borderRadius:"50%",background:T.paper,border:`1.5px dashed ${T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14}}>
             <span style={{fontFamily:display,fontSize:26,color:T.muted}}>+</span>
           </div>
-          <div style={{fontFamily:mono,fontSize:10,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:6}}>Vacancy · Position 06</div>
+          <div style={{fontFamily:mono,fontSize:10,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:6}}>Vacancy · Position 07</div>
           <div style={{fontFamily:display,fontSize:17,fontWeight:600,color:T.navy,textAlign:"center",marginBottom:5}}>Forecast Analyst</div>
           <div style={{fontFamily:body,fontSize:11.5,color:T.mutedDeep,textAlign:"center",fontStyle:"italic",lineHeight:1.5,maxWidth:200,marginBottom:14}}>Predictive spend modeling. Coming Q3 with agent workflows.</div>
           <div style={{padding:"3px 10px",background:`${T.brass}20`,border:`1px solid ${T.brass}60`,fontFamily:mono,fontSize:9.5,color:T.brassDeep,letterSpacing:1.2,textTransform:"uppercase",fontWeight:700}}>On Roadmap</div>

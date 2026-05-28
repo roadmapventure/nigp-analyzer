@@ -26,6 +26,7 @@ const body    = '"Inter", -apple-system, system-ui, sans-serif';
 const mono    = '"JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace';
 
 const CATEGORIES    = ["Compliance","Jurisdiction","Best Practice","Internal","Standards","Methodology","Playbook","Template","Statute"];
+const BRENT_CATEGORIES = ["Portal Navigation","Data Schema","Export Method","Auth Pattern","State Portal","Open Records","Research Method","Data Dictionary"];
 const JURISDICTIONS = ["All","Federal","Texas","California","Florida","New York","Illinois"];
 const FLAG_TRIGGERS = [
   { id:"maverick",      label:"Maverick Spend" },
@@ -592,7 +593,10 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
       showToast("✨ Claude is analyzing your document…","✨");
       // Auto-generate metadata
       try {
-        const metaRes = await fetch("/api/brief", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ system:"You are a procurement document classifier. Return ONLY valid JSON — no markdown fences.", messages:[{role:"user",content:`Classify this doc. Return ONLY JSON: {"title":"...","category":"one of: Compliance, Jurisdiction, Best Practice, Internal, Standards, Methodology, Playbook, Template, Statute","jurisdiction":"one of: All, Federal, Texas, California, Florida, New York, Illinois","priority":<0-100>,"triggers":<array from: ["maverick","po-split","spike","single-source","vendor-hhi","long-tail"] or ["all"]>}\n\nFile: ${file.name}\n\n${extractData.text.slice(0,3000)}`}] }) });
+        const categoryList = agent.id==="brent"
+          ? "Portal Navigation, Data Schema, Export Method, Auth Pattern, State Portal, Open Records, Research Method, Data Dictionary, Compliance, Best Practice, Standards"
+          : "Compliance, Jurisdiction, Best Practice, Internal, Standards, Methodology, Playbook, Template, Statute";
+        const metaRes = await fetch("/api/brief", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ system:"You are a procurement document classifier. Return ONLY valid JSON — no markdown fences.", messages:[{role:"user",content:`Classify this doc. Return ONLY JSON: {"title":"...","category":"one of: ${categoryList}","jurisdiction":"one of: All, Federal, Texas, California, Florida, New York, Illinois","priority":<0-100>,"triggers":<array from: ["maverick","po-split","spike","single-source","vendor-hhi","long-tail"] or ["all"]>}\n\nFile: ${file.name}\n\n${extractData.text.slice(0,3000)}`}] }) });
         const metaJson = await metaRes.json();
         const raw = metaJson.content?.[0]?.text||"";
         const parsed = JSON.parse(raw.replace(/^```json\s*/i,"").replace(/```\s*$/,"").trim());
@@ -686,11 +690,15 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
               <div style={{padding:"10px 6px",textAlign:"center",borderRight:`1px solid ${T.lineSoft}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3}}>
                 <div style={{fontFamily:mono,fontSize:9,color:T.muted}}>{entry.source?.split(" ")[1]||"—"}</div>
                 <div style={{fontFamily:mono,fontSize:8,color:T.muted}}>{entry.source?.split(" ")[2]||""}</div>
+                {entry.source_type==="agent"&&<div style={{fontFamily:mono,fontSize:8,color:T.moss,marginTop:2}}>🤖 Auto</div>}
+                {entry.steps_taken&&<div style={{fontFamily:mono,fontSize:8,color:T.brass,marginTop:2}}>{entry.steps_taken} steps</div>}
                 <div style={{width:8,height:8,borderRadius:"50%",background:isRetired?T.muted:T.moss,border:`2px solid ${T.card}`,boxShadow:`0 0 0 2px ${isRetired?T.muted:T.moss}`}}/>
               </div>
               <div style={{padding:"10px 13px"}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>
                   <span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${cc}40`,color:cc,background:`${cc}12`,fontWeight:600,letterSpacing:.5}}>{(entry.category||"").toUpperCase()}</span>
+                  {entry.source_type==="agent"&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.moss}40`,color:T.moss,background:`${T.moss}12`,fontWeight:600,letterSpacing:.5}}>🤖 FIELD NOTE</span>}
+                  {entry.steps_taken&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.brass}40`,color:T.brass,background:`${T.brass}10`,fontWeight:600,letterSpacing:.5}}>{entry.steps_taken} STEPS</span>}
                   <span style={{fontFamily:mono,fontSize:9,color:T.muted}}>▸ {entry.jurisdiction||"All"}</span>
                   <span style={{fontFamily:mono,fontSize:9,color:isRetired?T.muted:T.moss,marginLeft:"auto",fontWeight:700}}>{isRetired?"○ Disabled":"● Active"}</span>
                   {agent.trainable&&!isRetired&&(
@@ -787,7 +795,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
               <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Document title…" style={{width:"100%",padding:"8px 11px",fontFamily:body,fontSize:13,color:T.ink,background:T.cardAlt,border:`1px solid ${form.title?T.brass:T.line}`,outline:"none"}}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-              {[{key:"category",label:"Category",options:CATEGORIES},{key:"jurisdiction",label:"Jurisdiction",options:JURISDICTIONS}].map(({key,label,options})=>(
+              {[{key:"category",label:"Category",options:agent.id==="brent"?[...CATEGORIES,...BRENT_CATEGORIES]:CATEGORIES},{key:"jurisdiction",label:"Jurisdiction",options:JURISDICTIONS}].map(({key,label,options})=>(
                 <div key={key}>
                   <label style={{fontFamily:body,fontSize:10,color:T.muted,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:5,display:"flex",alignItems:"center",gap:6}}>{label} {!locked&&<AISugg/>}</label>
                   <select value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={{width:"100%",padding:"8px 11px",fontFamily:body,fontSize:13,color:T.ink,background:T.cardAlt,border:`1px solid ${T.line}`,outline:"none",cursor:"pointer",appearance:"none"}}>{options.map(o=><option key={o}>{o}</option>)}</select>
