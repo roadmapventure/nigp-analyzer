@@ -5,4 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/',
+  build: {
+    // Use esbuild instead of Vite 8's default Rolldown minifier.
+    // Rolldown's stricter TDZ handling breaks const declarations inside
+    // React components (AI_AGENTS, FTABS, NAV etc.) that Vite 6/7 tolerated.
+    minify: 'esbuild',
+  },
 })
