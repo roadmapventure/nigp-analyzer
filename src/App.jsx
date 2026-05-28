@@ -343,23 +343,6 @@ export default function NIGPAnalyzer() {
     };
   },[fetchState,fetchYear,fetchDateFrom,fetchDateTo,fetchApiBase]);
 
-  // When fetch completes successfully, load the downloaded file via the proxy and hand it to processFile
-  const handleFetchAnalyze=useCallback(async()=>{
-    if(!fetchComplete?.filePath) return;
-    setLoading(true);setError("");
-    try{
-      const url=`${fetchApiBase}/agent/download?file=${encodeURIComponent(fetchComplete.filePath)}`;
-      const res=await fetch(url);
-      if(!res.ok) throw new Error("Could not retrieve downloaded file from agent server.");
-      const blob=await res.blob();
-      const stateConfig=FETCH_STATES.find(s=>s.key===fetchState);
-      const fileName=fetchComplete.fileName||`${stateConfig?.name||fetchState}_${fetchYear}.csv`;
-      const file=new File([blob],fileName,{type:"text/csv"});
-      setFetchScreen("landing");
-      processFile(file);
-    }catch(e){setError("Could not load fetched file: "+e.message);setLoading(false);}
-  },[fetchComplete,fetchState,fetchYear,fetchApiBase,processFile]);
-
   const [stage,setStage]=useState("overview");
   const [helpOpen,setHelpOpen]=useState(false);
   const [helpDropdown,setHelpDropdown]=useState(false);
@@ -508,6 +491,24 @@ export default function NIGPAnalyzer() {
       error:e=>{setError("Parse error: "+e.message);setLoading(false);}
     });
   },[]);
+
+  // When fetch completes successfully, load the downloaded file via the proxy and hand it to processFile
+  const handleFetchAnalyze=useCallback(async()=>{
+    if(!fetchComplete?.filePath) return;
+    setLoading(true);setError("");
+    try{
+      const url=`${fetchApiBase}/agent/download?file=${encodeURIComponent(fetchComplete.filePath)}`;
+      const res=await fetch(url);
+      if(!res.ok) throw new Error("Could not retrieve downloaded file from agent server.");
+      const blob=await res.blob();
+      const stateConfig=FETCH_STATES.find(s=>s.key===fetchState);
+      const fileName=fetchComplete.fileName||`${stateConfig?.name||fetchState}_${fetchYear}.csv`;
+      const file=new File([blob],fileName,{type:"text/csv"});
+      setFetchScreen("landing");
+      processFile(file);
+    }catch(e){setError("Could not load fetched file: "+e.message);setLoading(false);}
+  },[fetchComplete,fetchState,fetchYear,fetchApiBase,processFile]);
+
 
   const runAnalysis = useCallback(()=>{
     if(!mapping.amount){setError("Please assign the Spend Amount column.");return;}
