@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       : "";
 
     const fetchRes = await fetch(
-      `${supabaseUrl}/rest/v1/knowledge_entries?tenant_id=eq.${encodeURIComponent(tenant_id)}${agentFilter}&select=id,title,category,jurisdiction,priority,triggers,status,tenant_id,agent_id,teaching_note,source,steps_taken,created_at&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/knowledge_entries?tenant_id=eq.${encodeURIComponent(tenant_id)}${agentFilter}&select=id,title,category,jurisdiction,priority,triggers,content,status,tenant_id,agent_id,teaching_note,source,steps_taken,created_at&order=created_at.desc`,
       {
         method: "GET",
         headers: {
@@ -53,6 +53,7 @@ export default async function handler(req, res) {
       teaching_note: e.teaching_note || "",
       source_type:   e.source || "user",
       steps_taken:   e.steps_taken || null,
+      content:       e.content || "",
       isDemo:        false,
       source:        e.created_at
         ? `Added ${new Date(e.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" })}`
