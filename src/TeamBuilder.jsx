@@ -59,6 +59,14 @@ const AGENTS = [
     quip:`"If it's on a government server, I'll find it."`, color:T.moss,
     isWebAgent:true,
   },
+  { id:"pat",     name:"Pat Smiley",           role:"Intern Researcher",               code:"IR-07", hiredOn:"Jan 2026",
+    trainer:"None", arch:"No Training",         specialty:"Basic Web Research (Untrained)",
+    salary:0,       value:0,       hourly:0,   reportHrs:1, reportCost:0,
+    docs:0, classes:0, chunks:0, skill:12, situational:5,
+    trainable:false, trainableBy:"None",        revenueModel:"Demo Only",
+    quip:`"I'm just here to learn... I think."`, color:T.muted,
+    isWebAgent:true, isIntern:true, noMemory:true,
+  },
 ];
 
 const AGENT_PRONOUNS = {
@@ -68,6 +76,7 @@ const AGENT_PRONOUNS = {
   christy: { subject:"she", object:"her", possessive:"her" },
   robyn:   { subject:"she", object:"her", possessive:"her" },
   brent:   { subject:"he",  object:"him", possessive:"his" },
+  pat:     { subject:"she", object:"her", possessive:"her" },
 };
 
 const CATEGORIES    = ["Compliance","Jurisdiction","Best Practice","Internal","Standards","Methodology","Playbook","Template","Statute"];
@@ -288,6 +297,7 @@ function AgentAvatar({who,size=68,ring=true}){
     christy:{skin:"#dba77d",hair:"#2a1a1a",collar:T.brass,  extra:"bob",   border:T.brass},
     robyn: {skin:"#c48b62",hair:"#8a3418",collar:"#5a2f3d",extra:"bun",    border:T.brass},
     brent: {skin:"#d4a870",hair:"#2c3e2d",collar:"#1a2e1a",extra:"field",  border:T.moss},
+    pat:   {skin:"#e8c9a0",hair:"#8b4513",collar:"#c0c0c0",extra:"bob",   border:T.muted},
   };
   const c=cfg[who]||cfg.chloe;
   const uid=`av-${who}-${Math.random().toString(36).slice(2,7)}`;
@@ -371,7 +381,7 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
 
       {/* Bench stats */}
       <div style={{background:T.navy,padding:"10px 20px",marginBottom:20,display:"flex",alignItems:"center",gap:28,borderBottom:`3px solid ${T.brass}`}}>
-        {[["Bench Size","6",T.card],["Annual Salary","$650k",T.brassLight],["Annual Value","$710k",T.mossLight],["Reports / Mo","54",T.card],["Trainable Agents","3",T.brassLight]].map(([k,v,c])=>(
+        {[["Bench Size","7",T.card],["Annual Salary","$650k",T.brassLight],["Annual Value","$710k",T.mossLight],["Reports / Mo","54",T.card],["Trainable Agents","3",T.brassLight]].map(([k,v,c])=>(
           <div key={k}>
             <div style={{fontFamily:mono,fontSize:8,color:"#8fa3bf",textTransform:"uppercase",letterSpacing:1.3,marginBottom:2}}>{k}</div>
             <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:c,fontVariantNumeric:"tabular-nums"}}>{v}</div>
@@ -402,7 +412,8 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
                       {a.trainable?`● YOUR TRAINEE`:`◐ ${a.trainableBy.toUpperCase()} MANAGED`}
                     </span>
                     <span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.brass}10`,color:T.brassDeep,border:`1px solid ${T.brass}35`,letterSpacing:.4}}>{a.arch}</span>
-                    {a.isWebAgent&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.moss}18`,color:T.moss,border:`1px solid ${T.moss}60`,letterSpacing:.4}}>🌐 WEB AGENT</span>}
+                    {a.isWebAgent&&!a.isIntern&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.moss}18`,color:T.moss,border:`1px solid ${T.moss}60`,letterSpacing:.4}}>🌐 WEB AGENT</span>}
+                    {a.isIntern&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 7px",background:`${T.muted}10`,color:T.muted,border:`1px solid ${T.muted}40`,letterSpacing:.4}}>👩‍💼 INTERN · NO MEMORY</span>}
                   </div>
                 </div>
               </div>
@@ -485,7 +496,7 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
           <div style={{width:64,height:64,borderRadius:"50%",background:T.paper,border:`1.5px dashed ${T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14}}>
             <span style={{fontFamily:display,fontSize:26,color:T.muted}}>+</span>
           </div>
-          <div style={{fontFamily:mono,fontSize:10,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:6}}>Vacancy · Position 07</div>
+          <div style={{fontFamily:mono,fontSize:10,color:T.brassDeep,textTransform:"uppercase",letterSpacing:1.3,fontWeight:600,marginBottom:6}}>Vacancy · Position 08</div>
           <div style={{fontFamily:display,fontSize:17,fontWeight:600,color:T.navy,textAlign:"center",marginBottom:5}}>Forecast Analyst</div>
           <div style={{fontFamily:body,fontSize:11.5,color:T.mutedDeep,textAlign:"center",fontStyle:"italic",lineHeight:1.5,maxWidth:200,marginBottom:14}}>Predictive spend modeling. Coming Q3 with agent workflows.</div>
           <div style={{padding:"3px 10px",background:`${T.brass}20`,border:`1px solid ${T.brass}60`,fontFamily:mono,fontSize:9.5,color:T.brassDeep,letterSpacing:1.2,textTransform:"uppercase",fontWeight:700}}>On Roadmap</div>

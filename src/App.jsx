@@ -227,6 +227,8 @@ const AI_AGENTS=[
   {id:"robyn",  name:"Robyn Castellanos", role:"NIGP Consultant",               arch:"RAG + Deep",      skill:88, awareness:35, cost:"$521",  costNum:521, color:T.brass},
   {id:"christy",name:"Christy Park",      role:"Marketing Designer",            arch:"LLM Format",      skill:36, awareness:5,  cost:"+$141", costNum:141, color:T.brass, addonOnly:true},
 ];
+// Pat Smiley — untrained intern, no memory, no RAG, used as demo baseline
+const PAT_AGENT = {id:"pat", name:"Pat Smiley", role:"Intern Researcher", arch:"No Training", skill:12, awareness:5, cost:"Free", costNum:0, color:T.muted, isIntern:true, noMemory:true};
 const ACTION_COLORS_FETCH={CLICK:"rgba(45,111,181,0.12)",FILL:"rgba(0,200,150,0.1)",SELECT:"rgba(245,166,35,0.1)",NAVIGATE:"rgba(155,110,243,0.1)",SCROLL:"rgba(138,173,202,0.1)",WAIT:"rgba(138,173,202,0.1)",DOWNLOAD:"rgba(0,200,150,0.15)",DONE:"rgba(0,200,150,0.15)",STUCK:"rgba(168,51,25,0.1)",ERROR:"rgba(168,51,25,0.1)"};
 const ACTION_TEXT_COLORS_FETCH={CLICK:"#2d6fb5",FILL:"#00c896",SELECT:"#f5a623",NAVIGATE:"#9b6ef3",SCROLL:"#8aadca",WAIT:"#8aadca",DOWNLOAD:"#00c896",DONE:"#00c896",STUCK:"#c0392b",ERROR:"#c0392b"};
 
@@ -285,6 +287,11 @@ export default function NIGPAnalyzer() {
   const [fetchThinkingText,setFetchThinkingText]=useState("");
   const [fetchComplete,setFetchComplete]=useState(null); // {fileName, filePath, steps}
   const [fetchStopped,setFetchStopped]=useState(false);
+  // Feature 1: timing
+  const fetchStartTimeRef=useRef(null);
+  const [fetchTotalTime,setFetchTotalTime]=useState(null);
+  // Feature 3+4: which agent is fetching — default Brent, option to use Pat
+  const [fetchAgentId,setFetchAgentId]=useState("brent"); // "brent"|"pat"
   const fetchEventSourceRef=useRef(null);
   const fetchListRef=useRef(null);
   const [fetchSelectedEvent,setFetchSelectedEvent]=useState(null);
@@ -317,7 +324,9 @@ export default function NIGPAnalyzer() {
     setFetchRunning(false);
     setFetchThinking(false);
     setFetchStopped(true);
-    setFetchEvents(prev=>[...prev,{type:"stopped",narration:"Agent halted by user. Session preserved — review all events above.",timestamp:new Date().toISOString()}]);
+    const elapsed=fetchStartTimeRef.current?((Date.now()-fetchStartTimeRef.current)/1000):null;
+    setFetchTotalTime(elapsed);
+    setFetchEvents(prev=>[...prev,{type:"stopped",narration:`Agent halted by user after ${elapsed?elapsed.toFixed(1)+"s":""}.`,timestamp:new Date().toISOString()}]);
     fetchUserScrolledRef.current=false;
     setTimeout(()=>{ if(fetchListRef.current){ fetchListRef.current.scrollTop=fetchListRef.current.scrollHeight; }},100);
   },[]);
@@ -329,18 +338,24 @@ export default function NIGPAnalyzer() {
     setFetchRunning(true);
     setFetchThinking(true);
     setFetchThinkingText("Connecting to agent…");
+    setFetchTotalTime(null);
+    fetchStartTimeRef.current=Date.now();
     setFetchScreen("running");
     const stateConfig=FETCH_STATES.find(s=>s.key===fetchState);
-    const url=`${fetchApiBase}/agent/run?state=${fetchState}&year=${fetchYear}&dateFrom=${encodeURIComponent(fetchDateFrom)}&dateTo=${encodeURIComponent(fetchDateTo)}`;
+    const usePat=fetchAgentId==="pat";
+    const url=`${fetchApiBase}/agent/run?state=${fetchState}&year=${fetchYear}&dateFrom=${encodeURIComponent(fetchDateFrom)}&dateTo=${encodeURIComponent(fetchDateTo)}${usePat?"&noMemory=true":""}`;
     const es=new EventSource(url);
     fetchEventSourceRef.current=es;
     es.onmessage=(event)=>{
       const data=JSON.parse(event.data);
       if(data.type==="end"){es.close();fetchEventSourceRef.current=null;setFetchRunning(false);setFetchThinking(false);return;}
       if(data.type==="complete"){
-        setFetchComplete({fileName:data.fileName,filePath:data.filePath,steps:data.steps,narration:data.narration,success:data.success});
+        const elapsed=fetchStartTimeRef.current?((Date.now()-fetchStartTimeRef.current)/1000):null;
+        setFetchTotalTime(elapsed);
+        setFetchComplete({fileName:data.fileName,filePath:data.filePath,steps:data.steps,narration:data.narration,success:data.success,totalTime:elapsed});
         setFetchThinking(false);
-        setFetchThinkingText(data.success?`✓ Complete — ${data.fileName} downloaded in ${data.steps} steps. No human required.`:"Agent finished but could not complete the download.");
+        const timeStr=elapsed?` in ${elapsed<60?elapsed.toFixed(1)+"s":Math.floor(elapsed/60)+"m "+Math.round(elapsed%60)+"s"}`:"";
+        setFetchThinkingText(data.success?`✓ Complete — ${data.fileName} downloaded in ${data.steps} steps${timeStr}. No human required.`:"Agent finished but could not complete the download.");
         setFetchRunning(false);
         // Force scroll to bottom so action items are visible
         fetchUserScrolledRef.current=false;
@@ -728,7 +743,10 @@ export default function NIGPAnalyzer() {
         {/* Sticky fetch topbar */}
         <div style={{background:T.navy,borderBottom:`2px solid ${T.brass}`,padding:"8px 20px",display:"flex",alignItems:"center",gap:0,flexShrink:0,flexWrap:"nowrap"}}>
           <div style={{flexShrink:0,marginRight:20}}>
-            <div style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.brassLight}}>State Fetch — {FETCH_STATES.find(s=>s.key===fetchState)?.name} · {FETCH_STATES.find(s=>s.key===fetchState)?.portal}</div>
+            <div style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.brassLight}}>
+              {fetchAgentId==="pat"?"👩‍💼 Pat (Intern)":"🌐 Brent"} — {FETCH_STATES.find(s=>s.key===fetchState)?.name} · {FETCH_STATES.find(s=>s.key===fetchState)?.portal}
+              {fetchTotalTime&&<span style={{fontFamily:mono,fontSize:10,color:T.brassLight,marginLeft:12}}>⏱ {fetchTotalTime<60?fetchTotalTime.toFixed(1)+"s":Math.floor(fetchTotalTime/60)+"m "+Math.round(fetchTotalTime%60)+"s"} total</span>}
+            </div>
             <div style={{fontFamily:mono,fontSize:"9px",color:"rgba(255,255,255,0.35)",letterSpacing:0.5,marginTop:1}}>{fetchDateFrom} → {fetchDateTo} · claude-sonnet-4-5 · Playwright</div>
           </div>
           <div style={{display:"flex",alignItems:"center",flex:1,overflow:"hidden"}}>
@@ -784,7 +802,13 @@ export default function NIGPAnalyzer() {
                       paddingLeft:"9.5px",
                       background:fetchSelectedEvent===idx?"rgba(45,111,181,0.08)":isError?`rgba(168,51,25,0.04)`:isComplete?`rgba(0,135,90,0.04)`:isStopped?`rgba(120,109,82,0.04)`:"transparent",
                       transition:"background 0.1s"}}>
-                    <div style={{fontFamily:mono,fontSize:"8px",color:T.muted,marginBottom:4}}>#{String(idx+1).padStart(2,"0")} · {act}{ev.timestamp?` · ${new Date(ev.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`:""}</div>
+                    <div style={{fontFamily:mono,fontSize:"8px",color:T.muted,marginBottom:4}}>
+                      #{String(idx+1).padStart(2,"0")} · {act}
+                      {ev.timestamp&&fetchEvents[0]?.timestamp&&(()=>{
+                        const elapsed=(new Date(ev.timestamp)-new Date(fetchEvents[0].timestamp))/1000;
+                        return <span style={{color:T.brass,marginLeft:4}}>+{elapsed<60?elapsed.toFixed(1)+"s":Math.floor(elapsed/60)+"m"+Math.round(elapsed%60)+"s"}</span>;
+                      })()}
+                    </div>
                     {act&&<span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"1px 5px",fontWeight:600,background:bg,color:tc,marginBottom:5}}>{act}</span>}
                     <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45}}>{ev.narration}</div>
                     {ev.reasoning&&<div style={{marginTop:5,fontSize:"10.5px",color:T.muted,lineHeight:1.5,fontStyle:"italic",borderLeft:`2px solid ${T.lineSoft}`,paddingLeft:6}}>{ev.reasoning}</div>}
@@ -804,7 +828,10 @@ export default function NIGPAnalyzer() {
                   <div style={{padding:"9px 12px",borderLeft:`2.5px solid ${T.brass}`,paddingLeft:"9.5px",background:`rgba(182,135,58,0.05)`,borderTop:`2px solid ${T.brass}`}}>
                     <div style={{fontFamily:mono,fontSize:"8px",color:T.brass,marginBottom:4}}>→ Next Step</div>
                     <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brassDeep,marginBottom:5}}>Analyze</span>
-                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>Data is ready. Proceed to field mapping and analysis.</div>
+                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>
+                      Data is ready. Proceed to field mapping and analysis.
+                      {fetchTotalTime&&<span style={{display:"block",fontFamily:mono,fontSize:9,color:T.brass,marginTop:4}}>⏱ Total time: {fetchTotalTime<60?fetchTotalTime.toFixed(1)+"s":Math.floor(fetchTotalTime/60)+"m "+Math.round(fetchTotalTime%60)+"s"} · {fetchEvents.length} steps</span>}
+                    </div>
                     <button onClick={handleFetchAnalyze} style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.brassLight,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>Map Fields → Analyze ▶</button>
                   </div>
                 </>
@@ -912,7 +939,16 @@ export default function NIGPAnalyzer() {
                   <div style={{fontSize:"11.5px",color:T.muted,lineHeight:1.65}}>Agent will navigate the portal, fill date fields,<br/>and download the CSV — autonomously.</div>
                   <button onClick={()=>setFetchScreen("landing")} style={{fontFamily:mono,fontSize:"10px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.muted,background:"none",border:"none",cursor:"pointer",padding:0,marginTop:7,display:"block"}}>← Cancel, go back</button>
                 </div>
-                <button onClick={runFetchAgent} style={{background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff",border:"none",padding:"13px 30px",cursor:"pointer",fontFamily:display,fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>⇲ Run Fetch Agent</button>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                  <button onClick={()=>{setFetchAgentId("brent");runFetchAgent();}}
+                    style={{background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff",border:"none",padding:"13px 30px",cursor:"pointer",fontFamily:display,fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
+                    ⇲ Run Fetch Agent
+                  </button>
+                  <button onClick={()=>{setFetchAgentId("pat");runFetchAgent();}}
+                    style={{background:"none",border:"none",cursor:"pointer",fontFamily:mono,fontSize:"9px",color:T.muted,letterSpacing:1,textDecoration:"underline",padding:0}}>
+                    I'd rather have an intern fetch
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1637,7 +1673,9 @@ export default function NIGPAnalyzer() {
                                   </div>
                                   <div style={{marginLeft:"auto",fontFamily:mono,fontSize:10,color:a?.costNum===0?T.moss:T.brassDeep,fontWeight:700}}>{a?.cost}</div>
                                 </div>
-                                <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"18px 20px",flex:1,fontSize:13,lineHeight:1.8,color:T.mutedDeep,fontFamily:body,whiteSpace:"pre-wrap"}}>{text}</div>
+                                <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"18px 20px",flex:1,fontSize:13,lineHeight:1.8,color:T.mutedDeep,fontFamily:body}}
+                                  dangerouslySetInnerHTML={{__html: text.trim().startsWith("<") ? text : text.replace(/\n/g,"<br/>")}}
+                                />
                                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:T.cardAlt,border:`1px solid ${T.line}`,borderTop:`2px solid ${T.brass}`}}>
                                   <div style={{fontFamily:body,fontSize:11,color:T.muted,fontStyle:"italic"}}>{a?.arch.includes("RAG")?"RAG-grounded · jurisdiction-specific":"Generic LLM analysis"}</div>
                                   <button onClick={()=>{
