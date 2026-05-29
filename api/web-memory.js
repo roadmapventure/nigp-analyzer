@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
       // 1. Fetch portal-specific entries for this exact URL
       const portalRes = await fetch(
-        `${supabaseUrl}/rest/v1/knowledge_entries?agent_id=eq.brent&tenant_id=eq.global&source=eq.agent&select=id,title,content,teaching_note,steps_taken,created_at&order=created_at.desc&limit=10`,
+        `${supabaseUrl}/rest/v1/knowledge_entries?agent_id=eq.brent&tenant_id=eq.global&source=eq.agent&select=id,title,content,teaching_note,steps_taken,created_at&order=created_at.asc`,
         {
           headers: {
             "apikey": supabaseKey,
@@ -69,10 +69,12 @@ export default async function handler(req, res) {
       const sections = [];
 
       if (urlEntries.length > 0) {
+        // Sort by created_at ascending so Brent reads his history chronologically
+        const sortedUrl = [...urlEntries].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
         sections.push(
           `## PORTAL-SPECIFIC MEMORY: ${url}\n` +
-          `I have visited this portal ${urlEntries.length} time(s) before. Here is what I learned:\n\n` +
-          urlEntries.map((e, i) => {
+          `I have visited this portal ${sortedUrl.length} time(s). Here is my COMPLETE history — use ALL of it:\n\n` +
+          sortedUrl.map((e, i) => {
             const stepsNote = e.steps_taken ? ` in ${e.steps_taken} steps` : "";
             const date = e.created_at ? new Date(e.created_at).toLocaleDateString() : "";
             const outcome = e.teaching_note?.includes("|success") ? "✓ SUCCESS" 
@@ -107,7 +109,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         memoryContext,
-        portalEntryCount: urlEntries.length,
+        portalEntryCount: urlEntries.length,  // all visits to this URL
         generalEntryCount: generalEntries.length,
         userEntryCount: userEntries.length,
       });
