@@ -1676,8 +1676,17 @@ export default function NIGPAnalyzer() {
                                 </div>
                                 <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"18px 20px",flex:1,fontSize:13,lineHeight:1.8,color:T.mutedDeep,fontFamily:body}}
                                   dangerouslySetInnerHTML={{__html:(()=>{
-                                    const raw=text.replace(/^```html\n?/i,"").replace(/^```\n?/,"").replace(/```\s*$/,"").trim();
-                                    return raw.startsWith("<") ? raw : raw.replace(/\n/g,"<br/>");
+                                    const raw=(text||"").trim();
+                                    const stripped=raw.replace(/^```html\s*/i,"").replace(/^```\s*/,"").trim();
+                                    if(stripped.startsWith("<")){
+                                      const fi=stripped.indexOf("\n```");
+                                      return fi>-1?stripped.slice(0,fi).trim():stripped;
+                                    }
+                                    return stripped
+                                      .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+                                      .replace(/## (.+)/g,"<h3 style='margin:12px 0 6px;color:#12243c'>$1</h3>")
+                                      .replace(/# (.+)/g,"<h2 style='margin:14px 0 8px;color:#12243c'>$1</h2>")
+                                      .replace(/\n/g,"<br/>");
                                   })()}}
                                 />
                                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:T.cardAlt,border:`1px solid ${T.line}`,borderTop:`2px solid ${T.brass}`}}>

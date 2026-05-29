@@ -1113,8 +1113,18 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
                   <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"16px 18px",flex:1}}>
                     <div style={{fontFamily:body,fontSize:12.5,color:T.mutedDeep,lineHeight:1.7}}
                       dangerouslySetInnerHTML={{__html:(()=>{
-                        const raw=(r.briefText||"").replace(/^```html\n?/i,"").replace(/^```\n?/,"").replace(/```$/,"").trim();
-                        return raw.startsWith("<") ? raw : raw.replace(/\n/g,"<br/>");
+                        const raw=(r.briefText||"").trim();
+                        const stripped=raw.replace(/^```html\s*/i,"").replace(/^```\s*/,"").trim();
+                        if(stripped.startsWith("<")){
+                          const fi=stripped.indexOf("\n```");
+                          return fi>-1?stripped.slice(0,fi).trim():stripped;
+                        }
+                        return stripped
+                          .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+                          .replace(/## (.+)/g,"<h3 style='margin:12px 0 6px;color:#12243c'>$1</h3>")
+                          .replace(/# (.+)/g,"<h2 style='margin:14px 0 8px;color:#12243c'>$1</h2>")
+                          .replace(/\|/g,"&nbsp;|&nbsp;")
+                          .replace(/\n/g,"<br/>");
                       })()}}
                     />
                   </div>
