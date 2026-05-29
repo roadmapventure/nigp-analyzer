@@ -725,6 +725,11 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                   </div>
                 )}
                 {entry.priority!=null&&<div style={{fontFamily:mono,fontSize:9,color:T.muted}}>Priority {entry.priority}/100</div>}
+                {/* Time display — visible on card for agent field notes */}
+                {entry.source_type==="agent"&&entry.content&&(()=>{
+                  const timeMatch=entry.content.match(/Time:\s*([\d.]+[ms]+(?:\s*\d+s)?)/);
+                  return timeMatch?<div style={{fontFamily:mono,fontSize:9,color:T.brass,marginTop:3}}>⏱ {timeMatch[1]}</div>:null;
+                })()}
                 {/* Expandable learned content — shown for all entries, especially agent field notes */}
                 {entry.content&&(
                   <div style={{marginTop:6}}>
