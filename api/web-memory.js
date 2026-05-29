@@ -200,6 +200,7 @@ export default async function handler(req, res) {
         success,
         steps_taken,
         total_time_seconds,
+        total_parse_retries,
         action_history,   // full array of {action, target, value, failed, error}
         final_screenshot, // base64 — not stored, just used for Claude's analysis
       } = req.body;
@@ -221,9 +222,12 @@ export default async function handler(req, res) {
       const timeStr = total_time_seconds
         ? ` (${total_time_seconds < 60 ? total_time_seconds.toFixed(1)+"s" : Math.floor(total_time_seconds/60)+"m "+Math.round(total_time_seconds%60)+"s"})`
         : "";
+      const retryNote = total_parse_retries > 0
+        ? ` (${total_parse_retries} screenshot/parse retries — portal may load slowly)`
+        : "";
       const outcome = success
-        ? `SUCCESS in ${steps_taken} steps${timeStr}`
-        : `FAILED after ${steps_taken} steps${timeStr}`;
+        ? `SUCCESS in ${steps_taken} steps${timeStr}${retryNote}`
+        : `FAILED after ${steps_taken} steps${timeStr}${retryNote}`;
       const outcomeTag = success ? "✓ Success" : "✗ Failed";
 
       const learningPrompt = `You are Brent Matthews, a Data Research Specialist AI agent. You just attempted to download government spending data from this portal: ${url}
@@ -233,7 +237,7 @@ Outcome: ${outcome}
 Here is the complete action history:
 ${historyText}
 
-Write a concise field note that will help you avoid mistakes on future runs. ${!success ? "Focus especially on what went wrong and what to try differently next time." : "Focus on what worked so it can be repeated reliably."}
+Write a concise field note that will help you avoid mistakes on future runs. ${!success ? "Focus especially on what went wrong and what to try differently next time." : "Focus on what worked so it can be repeated reliably."} ${total_parse_retries > 0 ? `There were ${total_parse_retries} screenshot/parse retries — note which steps were slow and whether adding a longer wait before taking screenshots would help.` : ""}
 
 Structure your response as valid JSON only:
 {
@@ -287,6 +291,7 @@ Structure your response as valid JSON only:
         `Portal: ${url}`,
         `Outcome: ${outcome}`,
         total_time_seconds ? `Time: ${total_time_seconds < 60 ? total_time_seconds.toFixed(1)+"s" : Math.floor(total_time_seconds/60)+"m "+Math.round(total_time_seconds%60)+"s"}` : null,
+        total_parse_retries > 0 ? `Parse retries: ${total_parse_retries} (screenshot timeouts or slow portal loads)` : null,
         ``,
         `Notes: ${learning.portal_notes}`,
         ``,
