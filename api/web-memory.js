@@ -126,6 +126,7 @@ export default async function handler(req, res) {
         url,
         success,
         steps_taken,
+        total_time_seconds,
         action_history,   // full array of {action, target, value, failed, error}
         final_screenshot, // base64 — not stored, just used for Claude's analysis
       } = req.body;
@@ -144,7 +145,12 @@ export default async function handler(req, res) {
         return `Step ${i + 1}: ${h.action} on "${h.target}"${val} → ${result}`;
       }).join("\n");
 
-      const outcome = success ? `SUCCESS in ${steps_taken} steps` : `FAILED after ${steps_taken} steps`;
+      const timeStr = total_time_seconds
+        ? ` (${total_time_seconds < 60 ? total_time_seconds.toFixed(1)+"s" : Math.floor(total_time_seconds/60)+"m "+Math.round(total_time_seconds%60)+"s"})`
+        : "";
+      const outcome = success
+        ? `SUCCESS in ${steps_taken} steps${timeStr}`
+        : `FAILED after ${steps_taken} steps${timeStr}`;
       const outcomeTag = success ? "✓ Success" : "✗ Failed";
 
       const learningPrompt = `You are Brent Matthews, a Data Research Specialist AI agent. You just attempted to download government spending data from this portal: ${url}
@@ -207,6 +213,7 @@ Structure your response as valid JSON only:
       const content = [
         `Portal: ${url}`,
         `Outcome: ${outcome}`,
+        total_time_seconds ? `Time: ${total_time_seconds < 60 ? total_time_seconds.toFixed(1)+"s" : Math.floor(total_time_seconds/60)+"m "+Math.round(total_time_seconds%60)+"s"}` : null,
         ``,
         `Notes: ${learning.portal_notes}`,
         ``,
