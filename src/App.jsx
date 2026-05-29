@@ -1675,7 +1675,10 @@ export default function NIGPAnalyzer() {
                                   <div style={{marginLeft:"auto",fontFamily:mono,fontSize:10,color:a?.costNum===0?T.moss:T.brassDeep,fontWeight:700}}>{a?.cost}</div>
                                 </div>
                                 <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"18px 20px",flex:1,fontSize:13,lineHeight:1.8,color:T.mutedDeep,fontFamily:body}}
-                                  dangerouslySetInnerHTML={{__html: text.trim().startsWith("<") ? text : text.replace(/\n/g,"<br/>")}}
+                                  dangerouslySetInnerHTML={{__html:(()=>{
+                                    const raw=text.replace(/^```html\n?/i,"").replace(/^```\n?/,"").replace(/```\s*$/,"").trim();
+                                    return raw.startsWith("<") ? raw : raw.replace(/\n/g,"<br/>");
+                                  })()}}
                                 />
                                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:T.cardAlt,border:`1px solid ${T.line}`,borderTop:`2px solid ${T.brass}`}}>
                                   <div style={{fontFamily:body,fontSize:11,color:T.muted,fontStyle:"italic"}}>{a?.arch.includes("RAG")?"RAG-grounded · jurisdiction-specific":"Generic LLM analysis"}</div>

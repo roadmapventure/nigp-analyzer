@@ -1111,7 +1111,12 @@ function TestTeamScreen({filterAgent,onBack,showToast}){
                   </div>
                   {/* Brief body */}
                   <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"16px 18px",flex:1}}>
-                    <div style={{fontFamily:body,fontSize:12.5,color:T.mutedDeep,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{r.briefText}</div>
+                    <div style={{fontFamily:body,fontSize:12.5,color:T.mutedDeep,lineHeight:1.7}}
+                      dangerouslySetInnerHTML={{__html:(()=>{
+                        const raw=(r.briefText||"").replace(/^```html\n?/i,"").replace(/^```\n?/,"").replace(/```$/,"").trim();
+                        return raw.startsWith("<") ? raw : raw.replace(/\n/g,"<br/>");
+                      })()}}
+                    />
                   </div>
                   {/* Prompt + RAG reveal — shows real assembled prompt from brief.js */}
                   <div style={{background:T.navyDeep,border:`1px solid rgba(255,255,255,.1)`,borderTop:"none"}}>
