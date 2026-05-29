@@ -65,33 +65,43 @@ export default async function handler(req, res) {
 
       const userEntries = userRes.ok ? await userRes.json() : [];
 
-      // 4. Fetch Brent's playbook (guardrail) from agent_configs
+      // 4. Fetch Brent's resume (role_prompt) and playbook (guardrail) from agent_configs
+      let resumeText = "";
       let playbookText = "";
       try {
-        const pbRes = await fetch(
-          `${supabaseUrl}/rest/v1/agent_configs?agent_id=eq.brent&tenant_id=eq.global&type=eq.guardrail&is_default=eq.true&select=text&limit=1`,
-          {
-            headers: {
-              "apikey": supabaseKey,
-              "Authorization": `Bearer ${supabaseKey}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        if (pbRes.ok) {
-          const pbData = await pbRes.json();
+        const [resumeRes, playbookRes] = await Promise.all([
+          fetch(
+            `${supabaseUrl}/rest/v1/agent_configs?agent_id=eq.brent&tenant_id=eq.global&type=eq.role_prompt&is_default=eq.true&select=text&limit=1`,
+            { headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}`, "Content-Type": "application/json" } }
+          ),
+          fetch(
+            `${supabaseUrl}/rest/v1/agent_configs?agent_id=eq.brent&tenant_id=eq.global&type=eq.guardrail&is_default=eq.true&select=text&limit=1`,
+            { headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}`, "Content-Type": "application/json" } }
+          ),
+        ]);
+        if (resumeRes.ok) {
+          const rData = await resumeRes.json();
+          resumeText = rData?.[0]?.text || "";
+        }
+        if (playbookRes.ok) {
+          const pbData = await playbookRes.json();
           playbookText = pbData?.[0]?.text || "";
         }
       } catch (e) {
-        console.warn("Playbook fetch failed:", e.message);
+        console.warn("Agent config fetch failed:", e.message);
       }
 
       // Build the memory context string injected into agent system prompt
       const sections = [];
       
-      // Playbook goes first — it governs all behavior
+      // Layer 01 — Resume/Role: who Brent is and how he approaches the work
+      if (resumeText) {
+        sections.push(`## BRENT'S ROLE & BACKGROUND (Layer 01 — Resume):\n${resumeText}`);
+      }
+
+      // Layer 02 — Playbook/Guardrail: operational rules that govern all behavior
       if (playbookText) {
-        sections.push(`## BRENT'S OPERATIONAL PLAYBOOK — FOLLOW THESE RULES FIRST:\n${playbookText}`);
+        sections.push(`## BRENT'S OPERATIONAL PLAYBOOK — FOLLOW THESE RULES (Layer 02 — Playbook):\n${playbookText}`);
       }
 
       if (urlEntries.length > 0) {
@@ -168,9 +178,11 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         memoryContext,
-        portalEntryCount: urlEntries.length,  // all visits to this URL
+        portalEntryCount: urlEntries.length,
         generalEntryCount: generalEntries.length,
         userEntryCount: userEntries.length,
+        hasResume: !!resumeText,
+        hasPlaybook: !!playbookText,
       });
 
     } catch (err) {
