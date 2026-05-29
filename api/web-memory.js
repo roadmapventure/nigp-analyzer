@@ -65,23 +65,82 @@ export default async function handler(req, res) {
 
       const userEntries = userRes.ok ? await userRes.json() : [];
 
+      // 4. Fetch Brent's playbook (guardrail) from agent_configs
+      let playbookText = "";
+      try {
+        const pbRes = await fetch(
+          `${supabaseUrl}/rest/v1/agent_configs?agent_id=eq.brent&tenant_id=eq.global&type=eq.guardrail&is_default=eq.true&select=text&limit=1`,
+          {
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        if (pbRes.ok) {
+          const pbData = await pbRes.json();
+          playbookText = pbData?.[0]?.text || "";
+        }
+      } catch (e) {
+        console.warn("Playbook fetch failed:", e.message);
+      }
+
       // Build the memory context string injected into agent system prompt
       const sections = [];
+      
+      // Playbook goes first — it governs all behavior
+      if (playbookText) {
+        sections.push(`## BRENT'S OPERATIONAL PLAYBOOK — FOLLOW THESE RULES FIRST:\n${playbookText}`);
+      }
 
       if (urlEntries.length > 0) {
-        // Sort by created_at ascending so Brent reads his history chronologically
-        const sortedUrl = [...urlEntries].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+        // Split into successes and failures — successes dominate the prompt
+        const successes = urlEntries
+          .filter(e => e.teaching_note?.includes("|success"))
+          .sort((a,b) => (a.steps_taken||99) - (b.steps_taken||99)); // fastest first
+        const failures = urlEntries
+          .filter(e => !e.teaching_note?.includes("|success"));
+
+        // Best success = the one with fewest steps
+        const best = successes[0];
+        const recentSuccess = successes.find(e => e !== best); // second best for confirmation
+
+        let memParts = [];
+
+        if (best) {
+          const bestSteps = best.steps_taken ? ` in ${best.steps_taken} steps` : "";
+          const bestTime = (() => {
+            const m = (best.content||"").match(/Time: ([\d.]+[ms]+(?:\s*\d+s)?)/);
+            return m ? ` / ${m[1]}` : "";
+          })();
+          memParts.push(
+            `## ✅ BEST METHOD — REPLICATE THIS EXACTLY (${bestSteps}${bestTime}):\n` +
+            `DO NOT EXPLORE. DO NOT TRY OTHER APPROACHES. Execute this proven method:\n\n` +
+            best.content
+          );
+        }
+
+        if (recentSuccess) {
+          memParts.push(
+            `## ✅ CONFIRMED AGAIN in a later visit${recentSuccess.steps_taken ? ` (${recentSuccess.steps_taken} steps)` : ""}:\n` +
+            recentSuccess.content
+          );
+        }
+
+        if (failures.length > 0) {
+          // Only include the most informative failure (most steps = most info)
+          const worstFail = failures.sort((a,b) => (b.steps_taken||0) - (a.steps_taken||0))[0];
+          memParts.push(
+            `## ❌ FAILED APPROACH — DO NOT REPEAT (${failures.length} failed run${failures.length>1?"s":""} total):\n` +
+            `These selectors and approaches did NOT work — skip them entirely:\n\n` +
+            worstFail.content
+          );
+        }
+
         sections.push(
-          `## PORTAL-SPECIFIC MEMORY: ${url}\n` +
-          `I have visited this portal ${sortedUrl.length} time(s). Here is my COMPLETE history — use ALL of it:\n\n` +
-          sortedUrl.map((e, i) => {
-            const stepsNote = e.steps_taken ? ` in ${e.steps_taken} steps` : "";
-            const date = e.created_at ? new Date(e.created_at).toLocaleDateString() : "";
-            const outcome = e.teaching_note?.includes("|success") ? "✓ SUCCESS" 
-                          : e.teaching_note?.includes("|failed")  ? "✗ FAILED" 
-                          : "";
-            return `**Visit ${i + 1} — ${outcome}${stepsNote}${date ? ` (${date})` : ""}:**\n${e.content}`;
-          }).join("\n\n")
+          `## PORTAL MEMORY: ${url} (${urlEntries.length} total visits, ${successes.length} successful)\n` +
+          memParts.join("\n\n---\n\n")
         );
       }
 
