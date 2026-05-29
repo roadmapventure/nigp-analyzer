@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import Papa from "papaparse";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -45,7 +45,7 @@ function resolveNIGP(rawCode) {
 
 const FIELD_DEFS = {
   amount:      { label:"💰 Spend Amount",      required:true,  color:T.moss,   hint:"Dollar value per transaction",         synonyms:["itm_tot_am","amount","total","spend","cost","price","value","sum","extended","amt","dollar","extended_amount","total_amount","line_total","po_amount"] },
-  nigp:        { label:"🏷 NIGP Code",          required:true,  color:T.brass,  hint:"Commodity / class code",              synonyms:["commodity","nigp","class","code","item_class","commodity_code","nigp_code","item_no","class_code","nigp_class","nigp_commodity"] },
+  nigp:        { label:"🏷 NIGP Code",          required:false, color:T.brass,  hint:"Commodity / class code (optional — leave blank if not available)",              synonyms:["commodity","nigp","class","code","item_class","commodity_code","nigp_code","item_no","class_code","nigp_class","nigp_commodity"] },
   description: { label:"📋 Item Description",  required:false, color:T.muted,  hint:"What was purchased",                   synonyms:["commodity_description","description","desc","item_desc","service","product","title","line_desc","item_description","extended_description"] },
   vendor:      { label:"🏢 Vendor Name",        required:false, color:T.brass,  hint:"Supplier / contractor legal name",     synonyms:["lgl_nm","vendor","supplier","payee","contractor","company","vendor_name","legal_name","legalname","vendor_legal_name","firm"] },
   contract:    { label:"📄 Contract / MA #",    required:false, color:T.muted,  hint:"Master agreement or contract number",  synonyms:["master_agreement","contract","contract_no","contract_number","ma_number","agreement","po_contract","contract_id","master_agreement_no"] },
@@ -210,6 +210,28 @@ function computeVendorConc(rows, mapping, totalSpend) {
 
 const fileStore={current:null};
 
+// ── Fetch Agent Constants (module-level to avoid minifier TDZ issues) ─────────
+const FETCH_API_BASE_DEFAULT = "http://localhost:3001";
+const FETCH_STATES=[
+  {key:"maryland",   name:"Maryland",    portal:"MD-VIEW · Comptroller",  years:["2025","2024","2023","2022"], live:true,  url:"https://interactive2.marylandtaxes.gov/MDVIEW/"},
+  {key:"illinois",   name:"Illinois",    portal:"IL Comptroller",          years:["2025","2024","2023","2022"], live:true,  url:"https://illinoiscomptroller.gov/financial-reports-data/expenditures-state-spending/statewide"},
+  {key:"oregon",     name:"Oregon",      portal:"OregonBuys · Socrata",    years:["2024","2023","2022"],        live:false, url:"https://data.oregon.gov"},
+  {key:"texas",      name:"Texas",       portal:"CAPPS · DIR",              years:["2025","2024"],               live:false, url:"https://www.txsmartbuy.gov"},
+  {key:"california", name:"California",  portal:"Cal eProcure",             years:["2025","2024"],               live:false, url:"https://eprocure.dgs.ca.gov"},
+  {key:"florida",    name:"Florida",     portal:"MyFloridaMarket",          years:["2025","2024"],               live:false, url:"https://www.myfloridamarketplace.com"},
+];
+const AI_AGENTS=[
+  {id:"chloe",  name:"Chloe Okafor",     role:"Junior Procurement Analyst",    arch:"LLM Prompt",      skill:18, awareness:10, cost:"Free",  costNum:0,   color:T.brass},
+  {id:"mike",   name:"Mike Alvarez",      role:"Senior Procurement Analyst",    arch:"LLM Deep Prompt", skill:42, awareness:25, cost:"$141",  costNum:141, color:T.brass},
+  {id:"bob",    name:"Bob Whitfield",     role:"Prof. Procurement Analyst",     arch:"RAG",             skill:71, awareness:25, cost:"$339",  costNum:339, color:T.moss},
+  {id:"robyn",  name:"Robyn Castellanos", role:"NIGP Consultant",               arch:"RAG + Deep",      skill:88, awareness:35, cost:"$521",  costNum:521, color:T.brass},
+  {id:"christy",name:"Christy Park",      role:"Marketing Designer",            arch:"LLM Format",      skill:36, awareness:5,  cost:"+$141", costNum:141, color:T.brass, addonOnly:true},
+];
+// Pat Smiley — untrained intern, no memory, no RAG, used as demo baseline
+const PAT_AGENT = {id:"pat", name:"Pat Smiley", role:"Intern Researcher", arch:"No Training", skill:12, awareness:5, cost:"Free", costNum:0, color:T.muted, isIntern:true, noMemory:true};
+const ACTION_COLORS_FETCH={CLICK:"rgba(45,111,181,0.12)",FILL:"rgba(0,200,150,0.1)",SELECT:"rgba(245,166,35,0.1)",NAVIGATE:"rgba(155,110,243,0.1)",SCROLL:"rgba(138,173,202,0.1)",WAIT:"rgba(138,173,202,0.1)",DOWNLOAD:"rgba(0,200,150,0.15)",DONE:"rgba(0,200,150,0.15)",STUCK:"rgba(168,51,25,0.1)",ERROR:"rgba(168,51,25,0.1)"};
+const ACTION_TEXT_COLORS_FETCH={CLICK:"#2d6fb5",FILL:"#00c896",SELECT:"#f5a623",NAVIGATE:"#9b6ef3",SCROLL:"#8aadca",WAIT:"#8aadca",DOWNLOAD:"#00c896",DONE:"#00c896",STUCK:"#c0392b",ERROR:"#c0392b"};
+
 const GLOBAL_STYLE = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @keyframes borderPulse {
@@ -221,6 +243,8 @@ const GLOBAL_STYLE = `
 html, body, #root { margin: 0; padding: 0; width: 100%; min-height: 100vh; background: ${T.paperDeep}; }
 @keyframes hModalFadeIn { from{opacity:0} to{opacity:1} }
 @keyframes hModalPopIn  { from{opacity:0;transform:translate(-50%,-50%) scale(0.93)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+@keyframes pdot { 0%,100%{opacity:1} 50%{opacity:0.2} }
+@keyframes dbounce { 0%,80%,100%{transform:translateY(0);opacity:0.4} 40%{transform:translateY(-3px);opacity:1} }
 `;
 
 const NAV_GROUPS = [
@@ -251,6 +275,129 @@ const TimelinePctLabel = ({x,y,width,value,total}) => {
 };
 
 export default function NIGPAnalyzer() {
+  // ── Fetch Agent State ────────────────────────────────────────────────────────
+  const [fetchScreen,setFetchScreen]=useState("landing"); // "landing"|"configure"|"running"
+  const [fetchState,setFetchState]=useState("maryland");
+  const [fetchYear,setFetchYear]=useState("2025");
+  const [fetchDateFrom,setFetchDateFrom]=useState("01/01/2025");
+  const [fetchDateTo,setFetchDateTo]=useState("01/30/2025");
+  const [fetchEvents,setFetchEvents]=useState([]);
+  const [fetchRunning,setFetchRunning]=useState(false);
+  const [fetchThinking,setFetchThinking]=useState(false);
+  const [fetchThinkingText,setFetchThinkingText]=useState("");
+  const [fetchComplete,setFetchComplete]=useState(null); // {fileName, filePath, steps}
+  const [fetchStopped,setFetchStopped]=useState(false);
+  // Feature 1: timing
+  const fetchStartTimeRef=useRef(null);
+  const [fetchTotalTime,setFetchTotalTime]=useState(null);
+  // Feature 3+4: which agent is fetching — default Brent, option to use Pat
+  const [fetchAgentId,setFetchAgentId]=useState("brent"); // "brent"|"pat"
+  const fetchEventSourceRef=useRef(null);
+  const fetchListRef=useRef(null);
+  const fetchEventsRef=useRef([]); // ref copy for SSE closure access
+  // Canonical step count — action events only, used for all step displays
+  const fetchActionCount = fetchEvents.filter(e=>e.action||e.type==="downloaded").length;
+  const [fetchSelectedEvent,setFetchSelectedEvent]=useState(null);
+  const fetchApiBase = import.meta.env.VITE_FETCH_API_URL || FETCH_API_BASE_DEFAULT;
+
+  // Auto-scroll event list to bottom (latest) unless user has scrolled up
+  const fetchUserScrolledRef = useRef(false);
+  useEffect(()=>{
+    const el = fetchListRef.current;
+    if(!el) return;
+    // If user hasn't scrolled up, keep pinned to bottom
+    if(!fetchUserScrolledRef.current){
+      el.scrollTop = el.scrollHeight;
+    }
+    // Auto-select latest event so screenshot always shows current step
+    if(fetchEvents.length>0 && !fetchUserScrolledRef.current){
+      setFetchSelectedEvent(fetchEvents.length-1);
+    }
+  },[fetchEvents]);
+  // Track if user manually scrolled up
+  const handleFetchScroll = useCallback(()=>{
+    const el = fetchListRef.current;
+    if(!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    fetchUserScrolledRef.current = !atBottom;
+  },[]);
+
+  const stopFetchAgent=useCallback(()=>{
+    if(fetchEventSourceRef.current){fetchEventSourceRef.current.close();fetchEventSourceRef.current=null;}
+    setFetchRunning(false);
+    setFetchThinking(false);
+    setFetchStopped(true);
+    const elapsed=fetchStartTimeRef.current?((Date.now()-fetchStartTimeRef.current)/1000):null;
+    setFetchTotalTime(elapsed);
+    setFetchEvents(prev=>{
+      const actionCount=prev.filter(e=>e.action||e.type==="downloaded").length;
+      return [...prev,{type:"stopped",narration:`Agent halted by user after ${elapsed?elapsed.toFixed(1)+"s":""} · ${actionCount} steps taken.`,timestamp:new Date().toISOString()}];
+    });
+    fetchUserScrolledRef.current=false;
+    setTimeout(()=>{ if(fetchListRef.current){ fetchListRef.current.scrollTop=fetchListRef.current.scrollHeight; }},100);
+  },[]);
+
+  const runFetchAgent=useCallback((agentId="brent")=>{
+    setFetchAgentId(agentId);
+    setFetchEvents([]);
+    setFetchComplete(null);
+    setFetchStopped(false);
+    setFetchRunning(true);
+    setFetchThinking(true);
+    setFetchThinkingText("Connecting to agent…");
+    setFetchTotalTime(null);
+    fetchStartTimeRef.current=Date.now();
+    setFetchScreen("running");
+    const stateConfig=FETCH_STATES.find(s=>s.key===fetchState);
+    const usePat=agentId==="pat";
+    const url=`${fetchApiBase}/agent/run?state=${fetchState}&year=${fetchYear}&dateFrom=${encodeURIComponent(fetchDateFrom)}&dateTo=${encodeURIComponent(fetchDateTo)}${usePat?"&noMemory=true":""}`;
+    const es=new EventSource(url);
+    fetchEventSourceRef.current=es;
+    es.onmessage=(event)=>{
+      const data=JSON.parse(event.data);
+      if(data.type==="end"){es.close();fetchEventSourceRef.current=null;setFetchRunning(false);setFetchThinking(false);return;}
+      if(data.type==="complete"){
+        const elapsed=fetchStartTimeRef.current?((Date.now()-fetchStartTimeRef.current)/1000):null;
+        setFetchTotalTime(elapsed);
+        // Count only real agent action events for canonical step count
+        const canonicalSteps=fetchEventsRef.current.filter(e=>e.action||e.type==="downloaded").length;
+        setFetchComplete({fileName:data.fileName,filePath:data.filePath,steps:canonicalSteps,narration:data.narration,success:data.success,totalTime:elapsed});
+        setFetchThinking(false);
+        const timeStr=elapsed?` in ${elapsed<60?elapsed.toFixed(1)+"s":Math.floor(elapsed/60)+"m "+Math.round(elapsed%60)+"s"}`:"";
+        setFetchThinkingText(data.success?`✓ Complete — ${data.fileName} downloaded in ${canonicalSteps} steps${timeStr}. No human required.`:"Agent finished but could not complete the download.");
+        setFetchRunning(false);
+        // Force scroll to bottom so action items are visible
+        fetchUserScrolledRef.current=false;
+        setTimeout(()=>{ if(fetchListRef.current){ fetchListRef.current.scrollTop=fetchListRef.current.scrollHeight; }},100);
+        // Browser-side memory accuracy patch — update the just-saved entry with canonical values
+        if(data.success && fetchAgentId!=="pat"){
+          fetch("/api/web-memory-patch",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+              steps_taken: canonicalSteps,
+              total_time_seconds: elapsed,
+            }),
+          }).catch(()=>{});
+        }
+        return;
+      }
+      if(["start","step","downloaded","error","stuck","max_steps","action_error"].includes(data.type)){
+        setFetchEvents(prev=>{const next=[...prev,data];fetchEventsRef.current=next;return next;});
+        if(data.type==="step") setFetchThinkingText(`Analyzing screenshot — deciding next action… (step ${data.step})`);
+        if(data.type==="downloaded") setFetchThinkingText(`File downloaded: ${data.narration}`);
+        if(data.type==="error"||data.type==="stuck") setFetchThinkingText(`⚠ ${data.narration}`);
+        setFetchThinking(data.type==="step"||data.type==="start");
+      }
+    };
+    es.onerror=()=>{
+      setFetchEvents(prev=>[...prev,{type:"error",narration:"Connection to agent server lost. Is the Railway backend running?",timestamp:new Date().toISOString()}]);
+      setFetchRunning(false);setFetchThinking(false);
+      setFetchThinkingText("⚠ Connection lost. Check that the Railway backend is running.");
+      es.close();fetchEventSourceRef.current=null;
+    };
+  },[fetchState,fetchYear,fetchDateFrom,fetchDateTo,fetchApiBase]);
+
   const [stage,setStage]=useState("overview");
   const [helpOpen,setHelpOpen]=useState(false);
   const [helpDropdown,setHelpDropdown]=useState(false);
@@ -314,13 +461,7 @@ export default function NIGPAnalyzer() {
     setSessionConfigs(prev=>({...prev,[agentId]:{...(prev[agentId]||{}), [field]:value}}));
   };
 
-  const AI_AGENTS=[
-    {id:"chloe",  name:"Chloe Okafor",     role:"Junior Procurement Analyst",    arch:"LLM Prompt",      skill:18, awareness:10, cost:"Free",  costNum:0,   color:T.brass},
-    {id:"mike",   name:"Mike Alvarez",      role:"Senior Procurement Analyst",    arch:"LLM Deep Prompt", skill:42, awareness:25, cost:"$141",  costNum:141, color:T.brass},
-    {id:"bob",    name:"Bob Whitfield",     role:"Prof. Procurement Analyst",     arch:"RAG",             skill:71, awareness:25, cost:"$339",  costNum:339, color:T.moss},
-    {id:"robyn",  name:"Robyn Castellanos", role:"NIGP Consultant",               arch:"RAG + Deep",      skill:88, awareness:35, cost:"$521",  costNum:521, color:T.brass},
-    {id:"christy",name:"Christy Park",      role:"Marketing Designer",            arch:"LLM Format",      skill:36, awareness:5,  cost:"+$141", costNum:141, color:T.brass, addonOnly:true},
-  ];
+  
 
   const toggleAiAgent=(id)=>{
     if(id==="christy") return; // add-on only, not pickable here
@@ -406,9 +547,27 @@ export default function NIGPAnalyzer() {
     });
   },[]);
 
+  // When fetch completes successfully, load the downloaded file via the proxy and hand it to processFile
+  const handleFetchAnalyze=useCallback(async()=>{
+    if(!fetchComplete?.filePath) return;
+    setLoading(true);setError("");
+    try{
+      const url=`${fetchApiBase}/agent/download?file=${encodeURIComponent(fetchComplete.filePath)}`;
+      const res=await fetch(url);
+      if(!res.ok) throw new Error("Could not retrieve downloaded file from agent server.");
+      const blob=await res.blob();
+      const stateConfig=FETCH_STATES.find(s=>s.key===fetchState);
+      const fileName=fetchComplete.fileName||`${stateConfig?.name||fetchState}_${fetchYear}.csv`;
+      const file=new File([blob],fileName,{type:"text/csv"});
+      setFetchScreen("landing");
+      processFile(file);
+    }catch(e){setError("Could not load fetched file: "+e.message);setLoading(false);}
+  },[fetchComplete,fetchState,fetchYear,fetchApiBase,processFile]);
+
+
   const runAnalysis = useCallback(()=>{
     if(!mapping.amount){setError("Please assign the Spend Amount column.");return;}
-    if(!mapping.nigp){setError("Please assign the NIGP Code column.");return;}
+    // NIGP column is optional — analysis proceeds without it
     setLoading(true); setError("");
     Papa.parse(fileStore.current,{ header:true, skipEmptyLines:true,
       complete:results=>{
@@ -475,6 +634,9 @@ export default function NIGPAnalyzer() {
       </div>
       <div style={{flex:1}}/>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
+        {stage==="analyze"&&data&&(
+          <button onClick={()=>setStage("map")} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body}}>← Column Mapping</button>
+        )}
         <button onClick={()=>window.open("/admin","_blank")} style={{background:"transparent",border:`1px solid ${T.card}40`,color:T.card,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:body,display:"flex",alignItems:"center",gap:6}}>
           <span style={{fontSize:11}}>⚙</span> Build AI Analyst Team
         </button>
@@ -529,7 +691,7 @@ export default function NIGPAnalyzer() {
           </div>
           <div style={{display:"flex",gap:10}}>
             {activeTab==="updatefile"&&<button onClick={()=>{setStage("analyze");setActiveTab("overview");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"10px 20px",cursor:"pointer",fontSize:13,fontFamily:body}}>Cancel</button>}
-            <button onClick={()=>{setStage("overview");setData(null);setError("");setFileName("");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"10px 20px",cursor:"pointer",fontSize:13,fontFamily:body}}>+ Add New File</button>
+            <button onClick={()=>{setStage("overview");setData(null);setError("");setFileName("");setFetchScreen("landing");}} style={{background:"transparent",border:`1px solid ${T.line}`,color:T.mutedDeep,padding:"10px 20px",cursor:"pointer",fontSize:13,fontFamily:body}}>← Cancel</button>
             <button onClick={runAnalysis} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"10px 24px",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:display}}>Run Analysis →</button>
           </div>
         </div>
@@ -566,6 +728,316 @@ export default function NIGPAnalyzer() {
       </div>
     </div>
   );
+
+  // ── LANDING / FETCH SCREENS (full-page, no sidebar) ─────────────────────────
+  if(!data) {
+    const wfAdmin = (
+      <div onClick={()=>window.open("/admin","_blank")} style={{width:130,flexShrink:0,flexGrow:0,padding:"11px 12px 10px",background:"#2a2016",borderLeft:`3px solid ${T.brass}`,display:"flex",flexDirection:"column",gap:3,cursor:"pointer"}}>
+        <div style={{fontFamily:mono,fontSize:"8.5px",color:`${T.brass}88`,letterSpacing:1,fontWeight:500}}>⚙</div>
+        <div style={{fontFamily:display,fontSize:11,fontWeight:600,color:`${T.brassLight}AA`,lineHeight:1.3,fontStyle:"italic"}}>Admin Options</div>
+        <div style={{fontFamily:mono,fontSize:"7.5px",color:`${T.brass}55`,marginTop:2,letterSpacing:0.5}}>Build AI Analyst Team</div>
+      </div>
+    );
+    const Workflow = () => (
+      <div style={{display:"flex",alignItems:"stretch",marginBottom:28,border:`1px solid ${T.line}`,background:T.card,overflow:"hidden"}}>
+        {[{n:"01",l:"Load Data",active:true},{n:"02",l:"Map Columns & Fields"},{n:"03",l:"Auto-Analyze"},{n:"04",l:"Strategic Action Items",last:true}].map(s=>(
+          <div key={s.n} style={{flex:1,padding:"11px 12px 10px",position:"relative",display:"flex",flexDirection:"column",gap:3,background:s.active?T.navy:T.card,borderRight:s.last?"none":`1px solid ${T.line}`}}>
+            <div style={{fontFamily:mono,fontSize:"8.5px",color:s.active?"rgba(255,255,255,0.4)":T.muted,letterSpacing:1,fontWeight:500}}>{s.n}</div>
+            <div style={{fontFamily:display,fontSize:11,fontWeight:600,color:s.active?T.brassLight:T.navyMid,lineHeight:1.3}}>{s.l}</div>
+            {!s.last&&<span style={{position:"absolute",right:-7,top:"50%",transform:"translateY(-50%)",zIndex:2,fontSize:8,color:s.active?"rgba(255,255,255,0.25)":T.line,pointerEvents:"none"}}>▶</span>}
+          </div>
+        ))}
+        <div style={{width:8,flexShrink:0,background:T.paperDeep,borderLeft:`1px solid ${T.line}`}}/>
+        {wfAdmin}
+      </div>
+    );
+
+    // ── RUNNING SCREEN (full viewport) ──────────────────────────────────────
+    if(fetchScreen==="running") return (
+      <div style={{height:"100vh",background:T.paperDeep,fontFamily:body,color:T.ink,display:"flex",flexDirection:"column",overflow:"hidden",position:"fixed",inset:0}}>
+        <style>{GLOBAL_STYLE}</style>
+        {/* Sticky app header */}
+        <div style={{flexShrink:0}}>
+          <Header/>
+        </div>
+        {/* Sticky fetch topbar */}
+        <div style={{background:T.navy,borderBottom:`2px solid ${T.brass}`,padding:"8px 20px",display:"flex",alignItems:"center",gap:0,flexShrink:0,flexWrap:"nowrap"}}>
+          <div style={{flexShrink:0,marginRight:20}}>
+            <div style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.brassLight}}>
+              {fetchAgentId==="pat"?"👩‍💼 Pat (Intern)":"🌐 Brent"} — {FETCH_STATES.find(s=>s.key===fetchState)?.name} · {FETCH_STATES.find(s=>s.key===fetchState)?.portal}
+              {fetchTotalTime&&<span style={{fontFamily:mono,fontSize:10,color:T.brassLight,marginLeft:12}}>⏱ {fetchTotalTime<60?fetchTotalTime.toFixed(1)+"s":Math.floor(fetchTotalTime/60)+"m "+Math.round(fetchTotalTime%60)+"s"} total</span>}
+            </div>
+            <div style={{fontFamily:mono,fontSize:"9px",color:"rgba(255,255,255,0.35)",letterSpacing:0.5,marginTop:1}}>{fetchDateFrom} → {fetchDateTo} · claude-sonnet-4-5 · Playwright</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",flex:1,overflow:"hidden"}}>
+            {["Load Data","Map Fields","Auto-Analyze","Strategy"].map((s,i,arr)=>(
+              <span key={s}>
+                <span style={{fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"3px 8px",color:i===0?T.brassLight:"rgba(255,255,255,0.25)",fontWeight:i===0?600:400,position:"relative"}}>
+                  {s}
+                  {i===0&&<span style={{position:"absolute",bottom:-1,left:8,right:8,height:1.5,background:T.brass,display:"block"}}/>}
+                </span>
+                {i<arr.length-1&&<span style={{color:"rgba(255,255,255,0.12)",fontSize:9}}>›</span>}
+              </span>
+            ))}
+            <span style={{fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"3px 8px",color:"rgba(182,135,58,0.35)",borderLeft:"2px solid rgba(182,135,58,0.2)",marginLeft:4,fontStyle:"italic"}}>⚙ Admin / AI Team</span>
+          </div>
+          <button onClick={()=>{if(fetchRunning)stopFetchAgent();setFetchScreen("configure");}} style={{marginLeft:16,fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:1.5,color:"rgba(255,255,255,0.45)",background:"none",border:"1px solid rgba(255,255,255,0.2)",padding:"5px 12px",cursor:"pointer",flexShrink:0}}>← Cancel</button>
+        </div>
+        {/* Stop bar — only shown while running */}
+        {fetchRunning&&(
+          <div style={{background:"#7f1d1d",borderBottom:"2px solid #ef4444",padding:"6px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+            <div style={{fontSize:12,color:"#fff",fontWeight:600,display:"flex",alignItems:"center",gap:7}}>
+              <span style={{width:7,height:7,borderRadius:"50%",background:"#ef4444",display:"inline-block",flexShrink:0}}/>
+              Agent is running — click Stop to halt at any time
+            </div>
+            <button onClick={stopFetchAgent} style={{background:"#c0392b",color:"#fff",border:"none",padding:"5px 14px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:body}}>⬛ Stop Agent</button>
+          </div>
+        )}
+        {/* Split pane — fills ALL remaining viewport height */}
+        <div style={{display:"flex",flex:1,overflow:"hidden",minHeight:0}}>
+          {/* Event pane — own scrollable column, pinned to bottom */}
+          <div style={{width:300,flexShrink:0,background:T.card,borderRight:`1px solid ${T.line}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+            <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+              <span style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:2,color:T.muted,fontWeight:500}}>Event Log</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontFamily:mono,fontSize:"9px",color:T.brass,fontWeight:600}}>{fetchActionCount} steps · {fetchEvents.length} events</span>
+                {(!fetchRunning||fetchStopped||fetchComplete)&&(
+                  <button onClick={()=>setFetchScreen("configure")} style={{fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:1,color:T.muted,background:"none",border:`1px solid ${T.line}`,padding:"2px 8px",cursor:"pointer"}}>← Back</button>
+                )}
+              </div>
+            </div>
+            <div ref={fetchListRef} onScroll={handleFetchScroll} style={{flex:1,overflowY:"auto",padding:0,scrollBehavior:"smooth"}}>
+              {fetchEvents.map((ev,idx)=>{
+                const act=ev.action?.toUpperCase()||ev.type?.toUpperCase()||"";
+                const bg=ACTION_COLORS_FETCH[act]||"rgba(120,109,82,0.05)";
+                const tc=ACTION_TEXT_COLORS_FETCH[act]||T.muted;
+                const isError=ev.type==="error"||ev.type==="stuck"||ev.type==="action_error";
+                const isComplete=ev.type==="downloaded"||ev.type==="complete";
+                const isStopped=ev.type==="stopped";
+                const borderLeft=isError?`2.5px solid ${T.flag}`:isComplete?`2.5px solid ${T.moss}`:`2.5px solid transparent`;
+                return(
+                  <div key={idx} onClick={()=>setFetchSelectedEvent(idx)}
+                    style={{padding:"9px 12px",borderBottom:`1px solid ${T.lineSoft}`,cursor:"pointer",
+                      borderLeft:fetchSelectedEvent===idx?`2.5px solid #2d6fb5`:borderLeft,
+                      paddingLeft:"9.5px",
+                      background:fetchSelectedEvent===idx?"rgba(45,111,181,0.08)":isError?`rgba(168,51,25,0.04)`:isComplete?`rgba(0,135,90,0.04)`:isStopped?`rgba(120,109,82,0.04)`:"transparent",
+                      transition:"background 0.1s"}}>
+                    <div style={{fontFamily:mono,fontSize:"8px",color:T.muted,marginBottom:4}}>
+                      #{String(idx+1).padStart(2,"0")} · {act}
+                      {ev.timestamp&&fetchEvents[0]?.timestamp&&(()=>{
+                        const elapsed=(new Date(ev.timestamp)-new Date(fetchEvents[0].timestamp))/1000;
+                        return <span style={{color:T.brass,marginLeft:4}}>+{elapsed<60?elapsed.toFixed(1)+"s":Math.floor(elapsed/60)+"m"+Math.round(elapsed%60)+"s"}</span>;
+                      })()}
+                    </div>
+                    {act&&<span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"1px 5px",fontWeight:600,background:bg,color:tc,marginBottom:5}}>{act}</span>}
+                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45}}>{ev.narration}</div>
+                    {ev.reasoning&&<div style={{marginTop:5,fontSize:"10.5px",color:T.muted,lineHeight:1.5,fontStyle:"italic",borderLeft:`2px solid ${T.lineSoft}`,paddingLeft:6}}>{ev.reasoning}</div>}
+                    {ev.target&&<div style={{marginTop:4,fontFamily:mono,fontSize:"8.5px",color:"rgba(45,111,181,0.7)"}}>target: {String(ev.target).slice(0,80)}</div>}
+                    {ev.value&&<div style={{fontFamily:mono,fontSize:"8.5px",color:`rgba(0,135,90,0.8)`}}>value: "{String(ev.value).slice(0,60)}"</div>}
+                  </div>
+                );
+              })}
+              {fetchComplete?.success&&(
+                <>
+                  <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.lineSoft}`,borderLeft:`2.5px solid ${T.brass}`,paddingLeft:"9.5px",background:`rgba(182,135,58,0.05)`}}>
+                    <div style={{fontFamily:mono,fontSize:"8px",color:T.brass,marginBottom:4}}>⬇ Available Action</div>
+                    <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brass,marginBottom:5}}>Download</span>
+                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>{fetchComplete.fileName} is ready to save to your computer.</div>
+                    <button onClick={()=>window.open(`${fetchApiBase}/agent/download?file=${encodeURIComponent(fetchComplete.filePath)}`,"_blank")} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,color:T.navy,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>↓ Save CSV File</button>
+                  </div>
+                  <div style={{padding:"9px 12px",borderLeft:`2.5px solid ${T.brass}`,paddingLeft:"9.5px",background:`rgba(182,135,58,0.05)`,borderTop:`2px solid ${T.brass}`}}>
+                    <div style={{fontFamily:mono,fontSize:"8px",color:T.brass,marginBottom:4}}>→ Next Step</div>
+                    <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brassDeep,marginBottom:5}}>Analyze</span>
+                    <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>
+                      Data is ready. Proceed to field mapping and analysis.
+                      {fetchTotalTime&&<span style={{display:"block",fontFamily:mono,fontSize:9,color:T.brass,marginTop:4}}>⏱ Total time: {fetchTotalTime<60?fetchTotalTime.toFixed(1)+"s":Math.floor(fetchTotalTime/60)+"m "+Math.round(fetchTotalTime%60)+"s"} · {fetchActionCount} steps</span>}
+                    </div>
+                    <button onClick={handleFetchAnalyze} style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.brassLight,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>Map Fields → Analyze ▶</button>
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Thinking footer */}
+            <div style={{flexShrink:0,padding:"10px 14px",borderTop:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"flex-start",gap:8,minHeight:52}}>
+              {fetchRunning&&[0,0.15,0.3].map((d,i)=>(
+                <span key={i} style={{display:"inline-block",width:4,height:4,borderRadius:"50%",background:"#2d6fb5",animation:`dbounce 1.2s ${d}s infinite`,flexShrink:0,marginTop:5}}/>
+              ))}
+              {!fetchRunning&&<span style={{fontSize:14,flexShrink:0,marginTop:1}}>{fetchComplete?.success?"✓":fetchStopped?"◼":"⚠"}</span>}
+              <div style={{fontSize:11,lineHeight:1.5,flex:1,color:fetchComplete?.success?T.moss:fetchStopped?T.muted:fetchRunning?T.mutedDeep:T.flag}}>{fetchThinkingText||"Waiting…"}</div>
+            </div>
+          </div>
+          {/* Screenshot pane */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b1929",overflow:"hidden",minWidth:0}}>
+            <div style={{background:"rgba(0,0,0,0.45)",borderBottom:"1px solid rgba(255,255,255,0.07)",padding:"0 12px",height:30,display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
+              {["#e85d4a","#f5a623","#3eca7f"].map(c=><div key={c} style={{width:9,height:9,borderRadius:"50%",background:c}}/>)}
+              <div style={{flex:1,background:"rgba(255,255,255,0.05)",borderRadius:2,height:16,display:"flex",alignItems:"center",padding:"0 10px",fontFamily:mono,fontSize:"8px",color:"rgba(255,255,255,0.25)",overflow:"hidden",whiteSpace:"nowrap",marginLeft:6}}>
+                {FETCH_STATES.find(s=>s.key===fetchState)?.url||"about:blank"}
+              </div>
+            </div>
+            {/* Image area: flex:1 with height:0 forces it to never exceed parent */}
+            <div style={{flex:1,height:0,overflow:"hidden",position:"relative",background:"#0b1929"}}>
+              {(()=>{
+                const evIdx = fetchSelectedEvent !== null ? fetchSelectedEvent : fetchEvents.length-1;
+                const shot = fetchEvents[evIdx]?.screenshot;
+                return shot
+                  ? <img
+                      src={`data:image/jpeg;base64,${shot}`}
+                      alt={`Step ${evIdx+1} screenshot`}
+                      style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"contain",objectPosition:"top center",display:"block"}}
+                    />
+                  : <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <div style={{textAlign:"center",padding:24}}>
+                        <div style={{fontSize:28,marginBottom:10,opacity:0.15}}>🖥</div>
+                        <div style={{fontFamily:mono,fontSize:10,color:"rgba(255,255,255,0.15)",letterSpacing:0.5,lineHeight:1.9}}>
+                          {fetchRunning?"[ LIVE SCREENSHOT STREAM ]":"[ Waiting for agent to start ]"}<br/>
+                          Click any event in the left panel<br/>to view that step's screenshot
+                        </div>
+                      </div>
+                    </div>;
+              })()}
+              {fetchSelectedEvent!==null&&fetchSelectedEvent!==fetchEvents.length-1&&(
+                <div style={{position:"absolute",bottom:10,right:10,background:"rgba(0,0,0,0.6)",color:"rgba(255,255,255,0.6)",fontFamily:mono,fontSize:9,padding:"3px 8px",letterSpacing:1}}>
+                  STEP {fetchSelectedEvent+1} OF {fetchEvents.length} EVENTS · CLICK TO REPLAY
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // ── CONFIGURE SCREEN ────────────────────────────────────────────────────
+    if(fetchScreen==="configure") return (
+      <div style={{minHeight:"100vh",background:T.paperDeep,fontFamily:body,color:T.ink}}>
+        <style>{GLOBAL_STYLE}</style>
+        <Header/>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"32px 24px 80px"}}>
+          <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
+            <div>
+              <div style={{fontFamily:mono,fontSize:"10px",letterSpacing:3,textTransform:"uppercase",color:T.brass,fontWeight:500,marginBottom:10}}>Roadmap Venture · Procurement Intelligence</div>
+              <div style={{fontFamily:display,fontSize:32,fontWeight:700,color:T.navy,lineHeight:1.15,letterSpacing:"-0.5px"}}>Government Spend Analyzer</div>
+            </div>
+            <button onClick={()=>setFetchScreen("landing")} style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:1.5,color:T.muted,background:"none",border:`1px solid ${T.line}`,padding:"7px 14px",cursor:"pointer",marginTop:4}}>← Cancel</button>
+          </div>
+          <Workflow/>
+          <div style={{background:T.card,border:`1.5px solid ${T.brass}`,overflow:"hidden"}}>
+            <div style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,padding:"14px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.brassLight}}>Configure State Data Fetch</div>
+              <button onClick={()=>setFetchScreen("landing")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
+            </div>
+            <div style={{padding:24}}>
+              <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:10,fontWeight:500}}>Select state portal</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:22}}>
+                {FETCH_STATES.map(s=>(
+                  <div key={s.key} onClick={()=>s.live&&setFetchState(s.key)}
+                    style={{background:fetchState===s.key?"#d4e4f5":T.cardAlt,border:`1.5px solid ${fetchState===s.key?"#2d6fb5":T.line}`,padding:"11px 12px 10px",cursor:s.live?"pointer":"not-allowed",opacity:s.live?1:0.38,position:"relative",display:"flex",flexDirection:"column",gap:2,transition:"border-color 0.15s"}}>
+                    <span style={{position:"absolute",top:7,right:8,fontFamily:mono,fontSize:"7.5px",letterSpacing:1,textTransform:"uppercase",padding:"1px 5px",fontWeight:600,color:s.live?T.moss:T.muted,background:s.live?"rgba(90,117,56,0.1)":"rgba(120,109,82,0.1)",border:`1px solid ${s.live?"rgba(90,117,56,0.3)":"rgba(120,109,82,0.25)"}`}}>{s.live?"Live":"Soon"}</span>
+                    <span style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.navy}}>{s.name}</span>
+                    <span style={{fontFamily:mono,fontSize:"8.5px",color:T.muted,marginTop:2}}>{s.portal}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:10,fontWeight:500}}>Date range</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:22}}>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  <label style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.mutedDeep,fontWeight:500}}>Fiscal Year</label>
+                  <select value={fetchYear} onChange={e=>setFetchYear(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:body,fontSize:13,color:T.navy,appearance:"none"}}>
+                    {(FETCH_STATES.find(s=>s.key===fetchState)?.years||["2025"]).map(y=><option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  <label style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.mutedDeep,fontWeight:500}}>From Date</label>
+                  <input type="text" value={fetchDateFrom} onChange={e=>setFetchDateFrom(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:body,fontSize:13,color:T.navy}}/>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  <label style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.mutedDeep,fontWeight:500}}>To Date</label>
+                  <input type="text" value={fetchDateTo} onChange={e=>setFetchDateTo(e.target.value)} style={{background:T.cardAlt,border:`1px solid ${T.line}`,padding:"9px 10px",fontFamily:body,fontSize:13,color:T.navy}}/>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,paddingTop:4}}>
+                <div>
+                  <div style={{fontSize:"11.5px",color:T.muted,lineHeight:1.65}}>Agent will navigate the portal, fill date fields,<br/>and download the CSV — autonomously.</div>
+                  <button onClick={()=>setFetchScreen("landing")} style={{fontFamily:mono,fontSize:"10px",textTransform:"uppercase",letterSpacing:"1.5px",color:T.muted,background:"none",border:"none",cursor:"pointer",padding:0,marginTop:7,display:"block"}}>← Cancel, go back</button>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                  <button onClick={()=>runFetchAgent("brent")}
+                    style={{background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff",border:"none",padding:"13px 30px",cursor:"pointer",fontFamily:display,fontSize:14,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
+                    ⇲ Run Fetch Agent
+                  </button>
+                  <button onClick={()=>runFetchAgent("pat")}
+                    style={{background:"none",border:"none",cursor:"pointer",fontFamily:mono,fontSize:"9px",color:T.muted,letterSpacing:1,textDecoration:"underline",padding:0}}>
+                    I'd rather have an intern fetch
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    // ── LANDING SCREEN ──────────────────────────────────────────────────────
+    const scCorners = (
+      <>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",top:4,left:4,color:T.brass}}><path d="M0 0h3.5v1H1v2.5H0z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",top:4,right:4,color:T.brass}}><path d="M9 0H5.5v1H8v2.5H9z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",bottom:4,left:4,color:T.brass}}><path d="M0 9h3.5V8H1V5.5H0z"/></svg>
+        <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor" style={{position:"absolute",bottom:4,right:4,color:T.brass}}><path d="M9 9H5.5V8H8V5.5H9z"/></svg>
+      </>
+    );
+    return (
+      <div style={{minHeight:"100vh",background:T.paperDeep,fontFamily:body,color:T.ink}}>
+        <style>{GLOBAL_STYLE}</style>
+        <Header/>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"32px 24px 80px",position:"relative",zIndex:1}}>
+          {/* Eyebrow + title + subtitle */}
+          <div style={{marginBottom:30}}>
+            <div style={{fontFamily:mono,fontSize:"10px",letterSpacing:3,textTransform:"uppercase",color:T.brass,fontWeight:500,marginBottom:10}}>Roadmap Venture · Procurement Intelligence</div>
+            <div style={{fontFamily:display,fontSize:32,fontWeight:700,color:T.navy,lineHeight:1.15,letterSpacing:"-0.5px",marginBottom:8}}>Government Spend Analyzer</div>
+            <p style={{fontSize:"13.5px",color:T.muted,lineHeight:1.65,maxWidth:580}}>Load procurement data from a demo dataset, a live state portal, or your own file — then get instant vendor risk analysis, category intelligence, and an AI-generated executive briefing.</p>
+          </div>
+          <Workflow/>
+          <div style={{fontFamily:mono,fontSize:"9.5px",letterSpacing:"2.5px",textTransform:"uppercase",color:T.mutedDeep,marginBottom:12,fontWeight:500}}>Choose your data source</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            {/* 1 — Austin Demo */}
+            <div style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",cursor:"pointer",position:"relative",display:"flex",flexDirection:"column",transition:"border-color 0.18s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=T.brass} onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
+              {scCorners}
+              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:`1px solid ${T.moss}`,color:T.moss,background:"rgba(90,117,56,0.07)",marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Demo dataset</span>
+              <span style={{fontSize:24,marginBottom:10,display:"block"}}>🏙</span>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>City of Austin</div>
+              <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>Load Austin's FY2025 public procurement data instantly. See the full analysis workflow without uploading anything.</div>
+              <button onClick={async()=>{setLoading(true);setError("");try{const res=await fetch("/Austin_2025Data_.csv");if(!res.ok)throw new Error("Could not load demo file");const blob=await res.blob();const file=new File([blob],"Austin_2025Data_.csv",{type:"text/csv"});processFile(file);}catch(e){setLoading(false);setError("Demo failed to load: "+e.message);}}}
+                style={{marginTop:14,padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,border:"none",cursor:"pointer",alignSelf:"flex-start",background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,color:T.navy}}>▶ Load Demo</button>
+            </div>
+            {/* 2 — Fetch State Data */}
+            <div style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",cursor:"pointer",position:"relative",display:"flex",flexDirection:"column",transition:"border-color 0.18s"}}
+              onClick={()=>setFetchScreen("configure")} onMouseEnter={e=>e.currentTarget.style.borderColor=T.brass} onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
+              {scCorners}
+              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:"1px solid #2d6fb5",color:"#2d6fb5",background:"#d4e4f5",marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Live fetch · AI Agent</span>
+              <span style={{fontSize:24,marginBottom:10,display:"block"}}>🌐</span>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>Fetch State Data</div>
+              <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>AI agent navigates a government portal, fills forms, and downloads spend data automatically. No manual export required.</div>
+              <button style={{marginTop:14,padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,border:"none",cursor:"pointer",alignSelf:"flex-start",background:"linear-gradient(135deg,#2d6fb5,#1a4e85)",color:"#fff"}}>⇲ Fetch Live Data</button>
+            </div>
+            {/* 3 — Upload Your Own File */}
+            <div className="upload-blink" style={{background:T.card,border:`1.5px solid ${T.line}`,padding:"22px 20px 20px",position:"relative",display:"flex",flexDirection:"column"}}>
+              {scCorners}
+              <span style={{display:"inline-block",fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:"1.5px",padding:"2px 7px",border:`1px solid ${T.brass}`,color:T.brassDeep,background:`rgba(182,135,58,0.06)`,marginBottom:9,alignSelf:"flex-start",fontWeight:600}}>Your data</span>
+              <span style={{fontSize:24,marginBottom:10,display:"block"}}>📂</span>
+              <div style={{fontFamily:display,fontSize:15,fontWeight:600,color:T.navy,marginBottom:5}}>Upload Your Own File</div>
+              <div style={{fontSize:12,color:T.muted,lineHeight:1.6,flex:1}}>Drop or select a procurement CSV from your system. Supports any column format — fields are mapped automatically.</div>
+              <div onClick={()=>hiddenInputRef.current.click()} onDrop={e=>{e.preventDefault();processFile(e.dataTransfer.files[0]);}} onDragOver={e=>e.preventDefault()}>
+                <div style={{marginTop:14,display:"inline-block",padding:"9px 18px",fontWeight:700,fontSize:12,fontFamily:display,cursor:"pointer",background:"transparent",border:`1.5px solid ${T.brass}`,color:T.brassDeep}}>↑ Upload CSV</div>
+                <input ref={hiddenInputRef} type="file" accept=".csv" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
+              </div>
+            </div>
+          </div>
+          {error&&<div style={{marginTop:14,background:`${T.flag}10`,border:`1px solid ${T.flag}44`,padding:"12px 16px",color:T.flag,fontSize:14}}>⚠ {error}</div>}
+        </div>
+      </div>
+    );
+  }
 
   // ── MAIN ANALYZE STAGE ───────────────────────────────────────────────────────
   const vc = data?.vendorConc;
@@ -627,71 +1099,8 @@ export default function NIGPAnalyzer() {
         {/* ── CONTENT AREA ── */}
         <div style={{flex:1,overflowY:"auto",padding:"22px 26px",background:T.paperDeep}}>
 
-          {/* ── NO DATA: Landing ── */}
-          {!data&&(
-            <div style={{maxWidth:760,margin:"0 auto",width:"100%"}}>
-              <div style={{textAlign:"center",marginBottom:32}}>
-                <div style={{fontFamily:mono,fontSize:11,fontWeight:700,color:T.brassDeep,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>Government Procurement Intelligence</div>
-                <h1 style={{fontFamily:display,fontSize:30,fontWeight:600,color:T.navy,margin:"0 0 12px",letterSpacing:"-0.5px",lineHeight:1.2}}>
-                  Turn raw spend data into<br/>
-                  <span style={{color:T.brass}}>boardroom-ready intelligence</span>
-                </h1>
-                <p style={{fontSize:14,color:T.mutedDeep,maxWidth:480,margin:"0 auto",lineHeight:1.7}}>
-                  Upload your procurement CSV and get instant analysis — spend categories, vendor concentration, risk flags, and an AI-generated executive briefing.
-                </p>
-              </div>
 
-              {/* Ghost KPI cards */}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:28,opacity:0.3,pointerEvents:"none",userSelect:"none"}}>
-                {[{l:"Total Spend",v:"$000,000,000"},{l:"Transactions",v:"00,000"},{l:"Health Flags",v:"—"},{l:"Vendor HHI",v:"—"}].map(p=>(
-                  <div key={p.l} style={{background:T.card,border:`1px solid ${T.line}`,padding:"14px 16px",position:"relative"}}>
-                    <Corners/>
-                    <div style={{fontSize:9.5,color:T.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:6,fontFamily:mono}}>{p.l}</div>
-                    <div style={{fontFamily:display,fontSize:20,fontWeight:600,color:T.navy,filter:"blur(5px)"}}>{p.v}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Upload zone */}
-              <div
-                onClick={()=>hiddenInputRef.current.click()}
-                onDrop={e=>{e.preventDefault();processFile(e.dataTransfer.files[0]);}}
-                onDragOver={e=>{e.preventDefault();}}
-                className="upload-blink"
-                style={{border:`2px solid ${T.brass}55`,padding:"40px",textAlign:"center",cursor:"pointer",background:T.card,boxSizing:"border-box",position:"relative"}}>
-                <Corners/>
-                <div style={{fontSize:36,marginBottom:12}}>📊</div>
-                <div style={{fontFamily:display,fontSize:18,fontWeight:600,color:T.navy,marginBottom:8}}>Drop your government spend CSV here</div>
-                <div style={{fontSize:13,color:T.muted,marginBottom:20}}>Procurement health analysis · Vendor risk scoring · AI Executive Review</div>
-                <div style={{display:"inline-block",background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,color:T.navy,padding:"11px 28px",fontWeight:700,fontSize:14,fontFamily:display}}>↑ Upload Spend</div>
-                <input ref={hiddenInputRef} type="file" accept=".csv" style={{display:"none"}} onChange={e=>processFile(e.target.files[0])}/>
-              </div>
-
-              {error&&<div style={{marginTop:14,background:`${T.flag}10`,border:`1px solid ${T.flag}44`,padding:"12px 16px",color:T.flag,fontSize:14}}>⚠ {error}</div>}
-
-              {/* Demo card */}
-              <div style={{marginTop:14,background:T.card,border:`1px solid ${T.line}`,padding:"18px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap",position:"relative"}}>
-                <Corners/>
-                <div>
-                  <div style={{fontFamily:display,fontSize:13,fontWeight:600,color:T.navy,marginBottom:4}}>Don't have data available?</div>
-                  <div style={{fontSize:12,color:T.mutedDeep,lineHeight:1.6,maxWidth:440}}>Use the City of Austin's public spend data. Simply click the Demo button to see the full workflow.</div>
-                </div>
-                <button onClick={async()=>{
-                  setLoading(true); setError("");
-                  try {
-                    const res = await fetch("/Austin_2025Data_.csv");
-                    if(!res.ok) throw new Error("Could not load demo file");
-                    const blob = await res.blob();
-                    const file = new File([blob],"Austin_2025Data_.csv",{type:"text/csv"});
-                    processFile(file);
-                  } catch(e){ setLoading(false); setError("Demo failed to load: "+e.message); }
-                }} style={{background:`linear-gradient(135deg,${T.brass},${T.brassDeep})`,border:"none",color:T.navy,padding:"11px 28px",cursor:"pointer",fontSize:14,fontWeight:700,whiteSpace:"nowrap",flexShrink:0,fontFamily:display}}>
-                  ▶ Demo
-                </button>
-              </div>
-            </div>
-          )}
-
+                    {/* ── DATA LOADED ── */}
           {/* ── DATA LOADED ── */}
           {data&&(
             <>
@@ -1284,7 +1693,21 @@ export default function NIGPAnalyzer() {
                                   </div>
                                   <div style={{marginLeft:"auto",fontFamily:mono,fontSize:10,color:a?.costNum===0?T.moss:T.brassDeep,fontWeight:700}}>{a?.cost}</div>
                                 </div>
-                                <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"18px 20px",flex:1,fontSize:13,lineHeight:1.8,color:T.mutedDeep,fontFamily:body,whiteSpace:"pre-wrap"}}>{text}</div>
+                                <div style={{background:T.card,border:`1px solid ${T.line}`,borderTop:"none",padding:"18px 20px",flex:1,fontSize:13,lineHeight:1.8,color:T.mutedDeep,fontFamily:body}}
+                                  dangerouslySetInnerHTML={{__html:(()=>{
+                                    const raw=(text||"").trim();
+                                    const stripped=raw.replace(/^```html\s*/i,"").replace(/^```\s*/,"").trim();
+                                    if(stripped.startsWith("<")){
+                                      const fi=stripped.indexOf("\n```");
+                                      return fi>-1?stripped.slice(0,fi).trim():stripped;
+                                    }
+                                    return stripped
+                                      .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+                                      .replace(/## (.+)/g,"<h3 style='margin:12px 0 6px;color:#12243c'>$1</h3>")
+                                      .replace(/# (.+)/g,"<h2 style='margin:14px 0 8px;color:#12243c'>$1</h2>")
+                                      .replace(/\n/g,"<br/>");
+                                  })()}}
+                                />
                                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:T.cardAlt,border:`1px solid ${T.line}`,borderTop:`2px solid ${T.brass}`}}>
                                   <div style={{fontFamily:body,fontSize:11,color:T.muted,fontStyle:"italic"}}>{a?.arch.includes("RAG")?"RAG-grounded · jurisdiction-specific":"Generic LLM analysis"}</div>
                                   <button onClick={()=>{
