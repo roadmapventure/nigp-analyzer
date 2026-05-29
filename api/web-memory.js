@@ -1,9 +1,14 @@
 // api/web-memory.js
-// Two endpoints:
-export const config = { maxDuration: 60, runtime: "nodejs" };
+// v4.2.0: GET endpoint refactored to use rag-query.js (vector search) + agent-run (REFLECT)
+//         Drops all custom string filter code and manual Supabase queries for entries.
+//         POST endpoint (save learnings) kept intact — same pattern as ingest.js.
+//
+//   GET  ?url=<encoded_url>&goal=<encoded_goal>  — retrieve memory + execution plan before a run
+//   POST                                          — save what the agent learned after a run
 
-//   GET  ?url=<encoded_url>  — retrieve memory for a portal URL before a run
-//   POST                     — save what the agent learned after a run
+import { assembleContext } from "./agent-run.js";
+
+export const config = { maxDuration: 60, runtime: "nodejs" };
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -18,179 +23,52 @@ export default async function handler(req, res) {
   if (!supabaseUrl) return res.status(500).json({ error: "SUPABASE_URL not configured" });
   if (!supabaseKey) return res.status(500).json({ error: "SUPABASE_SERVICE_KEY not configured" });
 
-  // ── GET: retrieve memory for a URL ──────────────────────────────────────────
+  // ── GET: retrieve memory + execution plan before a Brent fetch run ─────────
   if (req.method === "GET") {
-    const { url } = req.query;
+    const { url, dateFrom, dateTo, goal } = req.query;
     if (!url) return res.status(400).json({ error: "url is required" });
 
     try {
-      // Extract domain for cross-site pattern retrieval
-      let domain = "";
-      try { domain = new URL(url).hostname; } catch {}
+      // queryText for RAG — semantically rich so vector search finds relevant portal history
+      const queryText = `${url} government spending data download ${dateFrom || ""} ${dateTo || ""} ${goal || ""}`.trim();
 
-      // 1. Fetch portal-specific entries for this exact URL
-      const portalRes = await fetch(
-        `${supabaseUrl}/rest/v1/knowledge_entries?agent_id=eq.brent&tenant_id=eq.global&source=eq.agent&select=id,title,content,teaching_note,steps_taken,created_at&order=created_at.asc`,
+      // taskDescription for REFLECT — what Brent is about to do
+      const taskDescription = [
+        `You are about to download government spending data from this portal: ${url}`,
+        dateFrom && dateTo ? `Target date range: ${dateFrom} to ${dateTo}` : null,
+        goal ? `Specific goal: ${goal}` : null,
+        "Review your knowledge and write a step-by-step execution plan for this run.",
+      ].filter(Boolean).join("\n");
+
+      // Full pipeline: configs + RAG (matchCount=10 for Brent — needs more portal history) + REFLECT
+      const { systemPrompt, executionPlan, debugInfo } = await assembleContext(
+        "brent",
+        "global",
+        queryText,
+        taskDescription,
         {
-          headers: {
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${supabaseKey}`,
-            "Content-Type": "application/json",
-          },
+          matchCount: 10,
+          isFetchAgent: true,
         }
       );
-
-      const allEntries = portalRes.ok ? await portalRes.json() : [];
-
-      // Filter: entries matching this URL, plus general cross-site patterns
-      // teaching_note format: "url|success" or "url|failed"
-      const urlEntries = allEntries.filter(e =>
-        e.teaching_note?.startsWith(url) || e.teaching_note?.includes(domain)
-      );
-      const generalEntries = allEntries.filter(e =>
-        !e.teaching_note?.includes(url) && !e.teaching_note?.includes(domain)
-      ).slice(0, 5);
-
-      // 2. Also fetch user-uploaded Brent training (non-agent entries)
-      const userRes = await fetch(
-        `${supabaseUrl}/rest/v1/knowledge_entries?agent_id=eq.brent&tenant_id=eq.global&source=eq.user&select=id,title,content,teaching_note&order=priority.desc&limit=5`,
-        {
-          headers: {
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${supabaseKey}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const userEntries = userRes.ok ? await userRes.json() : [];
-
-      // 4. Fetch Brent's resume (role_prompt) and playbook (guardrail) from agent_configs
-      let resumeText = "";
-      let playbookText = "";
-      try {
-        const [resumeRes, playbookRes] = await Promise.all([
-          fetch(
-            `${supabaseUrl}/rest/v1/agent_configs?agent_id=eq.brent&tenant_id=eq.global&type=eq.role_prompt&is_default=eq.true&select=text&limit=1`,
-            { headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}`, "Content-Type": "application/json" } }
-          ),
-          fetch(
-            `${supabaseUrl}/rest/v1/agent_configs?agent_id=eq.brent&tenant_id=eq.global&type=eq.guardrail&is_default=eq.true&select=text&limit=1`,
-            { headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}`, "Content-Type": "application/json" } }
-          ),
-        ]);
-        if (resumeRes.ok) {
-          const rData = await resumeRes.json();
-          resumeText = rData?.[0]?.text || "";
-        }
-        if (playbookRes.ok) {
-          const pbData = await playbookRes.json();
-          playbookText = pbData?.[0]?.text || "";
-        }
-      } catch (e) {
-        console.warn("Agent config fetch failed:", e.message);
-      }
-
-      // Build the memory context string injected into agent system prompt
-      const sections = [];
-      
-      // Layer 01 — Resume/Role: who Brent is and how he approaches the work
-      if (resumeText) {
-        sections.push(`## BRENT'S ROLE & BACKGROUND (Layer 01 — Resume):\n${resumeText}`);
-      }
-
-      // Layer 02 — Playbook/Guardrail: operational rules that govern all behavior
-      if (playbookText) {
-        sections.push(`## BRENT'S OPERATIONAL PLAYBOOK — FOLLOW THESE RULES (Layer 02 — Playbook):\n${playbookText}`);
-      }
-
-      if (urlEntries.length > 0) {
-        // Split into successes and failures — successes dominate the prompt
-        const successes = urlEntries
-          .filter(e => e.teaching_note?.includes("|success"))
-          .sort((a,b) => (a.steps_taken||99) - (b.steps_taken||99)); // fastest first
-        const failures = urlEntries
-          .filter(e => !e.teaching_note?.includes("|success"));
-
-        // Best success = the one with fewest steps
-        const best = successes[0];
-        const recentSuccess = successes.find(e => e !== best); // second best for confirmation
-
-        let memParts = [];
-
-        if (best) {
-          const bestSteps = best.steps_taken ? ` in ${best.steps_taken} steps` : "";
-          const bestTime = (() => {
-            const m = (best.content||"").match(/Time: ([\d.]+[ms]+(?:\s*\d+s)?)/);
-            return m ? ` / ${m[1]}` : "";
-          })();
-          memParts.push(
-            `## ✅ BEST METHOD — REPLICATE THIS EXACTLY (${bestSteps}${bestTime}):\n` +
-            `DO NOT EXPLORE. DO NOT TRY OTHER APPROACHES. Execute this proven method:\n\n` +
-            best.content
-          );
-        }
-
-        if (recentSuccess) {
-          memParts.push(
-            `## ✅ CONFIRMED AGAIN in a later visit${recentSuccess.steps_taken ? ` (${recentSuccess.steps_taken} steps)` : ""}:\n` +
-            recentSuccess.content
-          );
-        }
-
-        if (failures.length > 0) {
-          // Only include the most informative failure (most steps = most info)
-          const worstFail = failures.sort((a,b) => (b.steps_taken||0) - (a.steps_taken||0))[0];
-          memParts.push(
-            `## ❌ FAILED APPROACH — DO NOT REPEAT (${failures.length} failed run${failures.length>1?"s":""} total):\n` +
-            `These selectors and approaches did NOT work — skip them entirely:\n\n` +
-            worstFail.content
-          );
-        }
-
-        sections.push(
-          `## PORTAL MEMORY: ${url} (${urlEntries.length} total visits, ${successes.length} successful)\n` +
-          memParts.join("\n\n---\n\n")
-        );
-      }
-
-      if (generalEntries.length > 0) {
-        sections.push(
-          `## CROSS-SITE PATTERNS FROM OTHER GOVERNMENT PORTALS\n` +
-          `These patterns were observed across multiple government portals and likely apply here:\n\n` +
-          generalEntries.map(e => `**${e.title}:**\n${e.content}`).join("\n\n")
-        );
-      }
-
-      if (userEntries.length > 0) {
-        sections.push(
-          `## RESEARCH KNOWLEDGE (user-provided):\n` +
-          userEntries.map(e => {
-            const note = e.teaching_note ? `\n[Note: ${e.teaching_note}]` : "";
-            return `**${e.title}:**${note}\n${e.content}`;
-          }).join("\n\n")
-        );
-      }
-
-      const memoryContext = sections.length > 0
-        ? sections.join("\n\n---\n\n")
-        : "";
 
       return res.status(200).json({
-        memoryContext,
-        portalEntryCount: urlEntries.length,
-        generalEntryCount: generalEntries.length,
-        userEntryCount: userEntries.length,
-        hasResume: !!resumeText,
-        hasPlaybook: !!playbookText,
+        memoryContext: systemPrompt,
+        executionPlan,
+        hasResume:    debugInfo.layers.role  ? true  : false,
+        hasPlaybook:  debugInfo.layers.guardrail ? true : false,
+        ragMatchCount: debugInfo.layers.rag ? debugInfo.token_estimates.rag : 0,
+        _debug: debugInfo,
       });
 
     } catch (err) {
+      console.error("[web-memory GET]", err);
       return res.status(500).json({ error: err.message });
     }
   }
 
-  // ── POST: save what the agent learned after a run ────────────────────────────
+  // ── POST: save what the agent learned after a run ─────────────────────────
+  // Identical pattern to ingest.js — embed + upsert to knowledge_entries
   if (req.method === "POST") {
     if (!openaiKey) return res.status(500).json({ error: "OPENAI_API_KEY not configured" });
 
@@ -200,6 +78,8 @@ export default async function handler(req, res) {
         success,
         steps_taken,
         total_time_seconds,
+        total_parse_retries,
+        searches_used,
         action_history,   // full array of {action, target, value, failed, error}
         final_screenshot, // base64 — not stored, just used for Claude's analysis
       } = req.body;
@@ -208,7 +88,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "url and action_history are required" });
       }
 
-      // Ask Claude to write the learning entry
       const anthropicKey = process.env.ANTHROPIC_API_KEY;
       if (!anthropicKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
 
@@ -221,9 +100,12 @@ export default async function handler(req, res) {
       const timeStr = total_time_seconds
         ? ` (${total_time_seconds < 60 ? total_time_seconds.toFixed(1)+"s" : Math.floor(total_time_seconds/60)+"m "+Math.round(total_time_seconds%60)+"s"})`
         : "";
+      const retryNote = total_parse_retries > 0
+        ? ` (${total_parse_retries} screenshot/parse retries — portal may load slowly)`
+        : "";
       const outcome = success
-        ? `SUCCESS in ${steps_taken} steps${timeStr}`
-        : `FAILED after ${steps_taken} steps${timeStr}`;
+        ? `SUCCESS in ${steps_taken} steps${timeStr}${retryNote}`
+        : `FAILED after ${steps_taken} steps${timeStr}${retryNote}`;
       const outcomeTag = success ? "✓ Success" : "✗ Failed";
 
       const learningPrompt = `You are Brent Matthews, a Data Research Specialist AI agent. You just attempted to download government spending data from this portal: ${url}
@@ -233,7 +115,7 @@ Outcome: ${outcome}
 Here is the complete action history:
 ${historyText}
 
-Write a concise field note that will help you avoid mistakes on future runs. ${!success ? "Focus especially on what went wrong and what to try differently next time." : "Focus on what worked so it can be repeated reliably."}
+Write a concise field note that will help you avoid mistakes on future runs. ${!success ? "Focus especially on what went wrong and what to try differently next time." : "Focus on what worked so it can be repeated reliably."} ${total_parse_retries > 0 ? `There were ${total_parse_retries} screenshot/parse retries — note which steps were slow and whether adding a longer wait before taking screenshots would help.` : ""}
 
 Structure your response as valid JSON only:
 {
@@ -287,6 +169,8 @@ Structure your response as valid JSON only:
         `Portal: ${url}`,
         `Outcome: ${outcome}`,
         total_time_seconds ? `Time: ${total_time_seconds < 60 ? total_time_seconds.toFixed(1)+"s" : Math.floor(total_time_seconds/60)+"m "+Math.round(total_time_seconds%60)+"s"}` : null,
+        total_parse_retries > 0 ? `Parse retries: ${total_parse_retries} (screenshot timeouts or slow portal loads)` : null,
+        searches_used > 0 ? `Web searches used: ${searches_used} — key findings are in the action history above` : null,
         ``,
         `Notes: ${learning.portal_notes}`,
         ``,
@@ -304,7 +188,7 @@ Structure your response as valid JSON only:
           : null,
       ].filter(Boolean).join("\n");
 
-      // Generate embedding
+      // Generate embedding (same pattern as ingest.js)
       const embedRes = await fetch("https://api.openai.com/v1/embeddings", {
         method: "POST",
         headers: {
@@ -324,12 +208,12 @@ Structure your response as valid JSON only:
       const embedData = await embedRes.json();
       const embedding = embedData.data?.[0]?.embedding;
 
-      // Save to knowledge_entries
+      // Save to knowledge_entries — same structure as ingest.js
       const payload = {
         title:         learning.title,
         category:      "Portal Navigation",
         jurisdiction:  "All",
-        priority:      success ? 75 : 55,  // Failed runs still valuable — higher than original 40
+        priority:      success ? 75 : 55,
         triggers:      [],
         content,
         embedding,
@@ -338,7 +222,7 @@ Structure your response as valid JSON only:
         agent_id:      "brent",
         source:        "agent",
         steps_taken:   steps_taken || null,
-        teaching_note: `${url}|${success ? "success" : "failed"}`, // url|outcome for retrieval and display
+        teaching_note: `${url}|${success ? "success" : "failed"}`,
       };
 
       const upsertRes = await fetch(
@@ -369,6 +253,7 @@ Structure your response as valid JSON only:
       });
 
     } catch (err) {
+      console.error("[web-memory POST]", err);
       return res.status(500).json({ error: err.message });
     }
   }
