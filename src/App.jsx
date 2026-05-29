@@ -295,6 +295,8 @@ export default function NIGPAnalyzer() {
   const fetchEventSourceRef=useRef(null);
   const fetchListRef=useRef(null);
   const fetchEventsRef=useRef([]); // ref copy for SSE closure access
+  // Canonical step count — action events only, used for all step displays
+  const fetchActionCount = fetchEvents.filter(e=>e.action||e.type==="downloaded").length;
   const [fetchSelectedEvent,setFetchSelectedEvent]=useState(null);
   const fetchApiBase = import.meta.env.VITE_FETCH_API_URL || FETCH_API_BASE_DEFAULT;
 
@@ -327,7 +329,10 @@ export default function NIGPAnalyzer() {
     setFetchStopped(true);
     const elapsed=fetchStartTimeRef.current?((Date.now()-fetchStartTimeRef.current)/1000):null;
     setFetchTotalTime(elapsed);
-    setFetchEvents(prev=>[...prev,{type:"stopped",narration:`Agent halted by user after ${elapsed?elapsed.toFixed(1)+"s":""}.`,timestamp:new Date().toISOString()}]);
+    setFetchEvents(prev=>{
+      const actionCount=prev.filter(e=>e.action||e.type==="downloaded").length;
+      return [...prev,{type:"stopped",narration:`Agent halted by user after ${elapsed?elapsed.toFixed(1)+"s":""} · ${actionCount} steps taken.`,timestamp:new Date().toISOString()}];
+    });
     fetchUserScrolledRef.current=false;
     setTimeout(()=>{ if(fetchListRef.current){ fetchListRef.current.scrollTop=fetchListRef.current.scrollHeight; }},100);
   },[]);
@@ -795,7 +800,7 @@ export default function NIGPAnalyzer() {
             <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
               <span style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:2,color:T.muted,fontWeight:500}}>Event Log</span>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontFamily:mono,fontSize:"9px",color:T.brass,fontWeight:600}}>{fetchEvents.length} events</span>
+                <span style={{fontFamily:mono,fontSize:"9px",color:T.brass,fontWeight:600}}>{fetchActionCount} steps · {fetchEvents.length} events</span>
                 {(!fetchRunning||fetchStopped||fetchComplete)&&(
                   <button onClick={()=>setFetchScreen("configure")} style={{fontFamily:mono,fontSize:"8.5px",textTransform:"uppercase",letterSpacing:1,color:T.muted,background:"none",border:`1px solid ${T.line}`,padding:"2px 8px",cursor:"pointer"}}>← Back</button>
                 )}
@@ -845,7 +850,7 @@ export default function NIGPAnalyzer() {
                     <span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",padding:"1px 5px",fontWeight:600,background:`rgba(182,135,58,0.15)`,color:T.brassDeep,marginBottom:5}}>Analyze</span>
                     <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45,marginBottom:7}}>
                       Data is ready. Proceed to field mapping and analysis.
-                      {fetchTotalTime&&<span style={{display:"block",fontFamily:mono,fontSize:9,color:T.brass,marginTop:4}}>⏱ Total time: {fetchTotalTime<60?fetchTotalTime.toFixed(1)+"s":Math.floor(fetchTotalTime/60)+"m "+Math.round(fetchTotalTime%60)+"s"} · {fetchEvents.length} steps</span>}
+                      {fetchTotalTime&&<span style={{display:"block",fontFamily:mono,fontSize:9,color:T.brass,marginTop:4}}>⏱ Total time: {fetchTotalTime<60?fetchTotalTime.toFixed(1)+"s":Math.floor(fetchTotalTime/60)+"m "+Math.round(fetchTotalTime%60)+"s"} · {fetchActionCount} steps</span>}
                     </div>
                     <button onClick={handleFetchAnalyze} style={{background:`linear-gradient(135deg,${T.navy},${T.navyMid})`,color:T.brassLight,border:"none",padding:"6px 14px",cursor:"pointer",fontFamily:display,fontSize:11,fontWeight:700}}>Map Fields → Analyze ▶</button>
                   </div>
@@ -892,7 +897,7 @@ export default function NIGPAnalyzer() {
               })()}
               {fetchSelectedEvent!==null&&fetchSelectedEvent!==fetchEvents.length-1&&(
                 <div style={{position:"absolute",bottom:10,right:10,background:"rgba(0,0,0,0.6)",color:"rgba(255,255,255,0.6)",fontFamily:mono,fontSize:9,padding:"3px 8px",letterSpacing:1}}>
-                  STEP {fetchSelectedEvent+1} OF {fetchEvents.length} · CLICK EVENT TO REPLAY
+                  STEP {fetchSelectedEvent+1} OF {fetchEvents.length} EVENTS · CLICK TO REPLAY
                 </div>
               )}
             </div>

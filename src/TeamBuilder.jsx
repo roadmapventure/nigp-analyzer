@@ -481,7 +481,7 @@ function RosterScreen({onViewFile,onAddTraining,onTestTeam,showToast}){
               </>}
               {/* Action row */}
               <div style={{display:"flex",borderTop:`1px solid ${T.line}`}} onClick={e=>e.stopPropagation()}>
-                <button onClick={()=>onViewFile(a)} style={{flex:1,padding:10,fontFamily:body,fontSize:11.5,fontWeight:500,background:"transparent",border:"none",borderRight:`1px solid ${T.line}`,color:T.mutedDeep,cursor:"pointer"}}>View File →</button>
+                <button onClick={()=>onViewFile(a)} style={{flex:1,padding:10,fontFamily:body,fontSize:11.5,fontWeight:500,background:"transparent",border:"none",borderRight:`1px solid ${T.line}`,color:T.mutedDeep,cursor:"pointer"}}>View Profile →</button>
                 {a.trainable
                   ?<button onClick={()=>onAddTraining(a)} style={{flex:1,padding:10,fontFamily:body,fontSize:11.5,fontWeight:700,background:a.color===T.moss?T.moss:T.brass,color:a.color===T.moss?"#fff":T.navy,border:"none",cursor:"pointer"}}>+ Add Training</button>
                   :<button style={{flex:1,padding:10,fontFamily:body,fontSize:11.5,background:"transparent",border:"none",color:T.muted,cursor:"not-allowed"}}>🔒 {a.trainableBy} Only</button>
