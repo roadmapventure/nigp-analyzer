@@ -294,6 +294,7 @@ export default function NIGPAnalyzer() {
   const [fetchAgentId,setFetchAgentId]=useState("brent"); // "brent"|"pat"
   const fetchEventSourceRef=useRef(null);
   const fetchListRef=useRef(null);
+  const fetchEventsRef=useRef([]); // ref copy for SSE closure access
   const [fetchSelectedEvent,setFetchSelectedEvent]=useState(null);
   const fetchApiBase = import.meta.env.VITE_FETCH_API_URL || FETCH_API_BASE_DEFAULT;
 
@@ -353,18 +354,31 @@ export default function NIGPAnalyzer() {
       if(data.type==="complete"){
         const elapsed=fetchStartTimeRef.current?((Date.now()-fetchStartTimeRef.current)/1000):null;
         setFetchTotalTime(elapsed);
-        setFetchComplete({fileName:data.fileName,filePath:data.filePath,steps:data.steps,narration:data.narration,success:data.success,totalTime:elapsed});
+        // Count only real agent action events for canonical step count
+        const canonicalSteps=fetchEventsRef.current.filter(e=>e.action||e.type==="downloaded").length;
+        setFetchComplete({fileName:data.fileName,filePath:data.filePath,steps:canonicalSteps,narration:data.narration,success:data.success,totalTime:elapsed});
         setFetchThinking(false);
         const timeStr=elapsed?` in ${elapsed<60?elapsed.toFixed(1)+"s":Math.floor(elapsed/60)+"m "+Math.round(elapsed%60)+"s"}`:"";
-        setFetchThinkingText(data.success?`✓ Complete — ${data.fileName} downloaded in ${data.steps} steps${timeStr}. No human required.`:"Agent finished but could not complete the download.");
+        setFetchThinkingText(data.success?`✓ Complete — ${data.fileName} downloaded in ${canonicalSteps} steps${timeStr}. No human required.`:"Agent finished but could not complete the download.");
         setFetchRunning(false);
         // Force scroll to bottom so action items are visible
         fetchUserScrolledRef.current=false;
         setTimeout(()=>{ if(fetchListRef.current){ fetchListRef.current.scrollTop=fetchListRef.current.scrollHeight; }},100);
+        // Browser-side memory accuracy patch — update the just-saved entry with canonical values
+        if(data.success && fetchAgentId!=="pat"){
+          fetch("/api/web-memory-patch",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+              steps_taken: canonicalSteps,
+              total_time_seconds: elapsed,
+            }),
+          }).catch(()=>{});
+        }
         return;
       }
       if(["start","step","downloaded","error","stuck","max_steps","action_error"].includes(data.type)){
-        setFetchEvents(prev=>[...prev,data]);
+        setFetchEvents(prev=>{const next=[...prev,data];fetchEventsRef.current=next;return next;});
         if(data.type==="step") setFetchThinkingText(`Analyzing screenshot — deciding next action… (step ${data.step})`);
         if(data.type==="downloaded") setFetchThinkingText(`File downloaded: ${data.narration}`);
         if(data.type==="error"||data.type==="stuck") setFetchThinkingText(`⚠ ${data.narration}`);
