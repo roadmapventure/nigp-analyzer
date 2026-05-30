@@ -764,9 +764,13 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                   )}
                 </div>
                 <div style={{fontFamily:display,fontSize:13.5,fontWeight:600,color:isRetired?T.mutedDeep:T.navy,marginBottom:4,fontStyle:isRetired?"italic":"normal"}}>{entry.title}</div>
-                {entry.created_at&&(()=>{
+                {(()=>{
+                  // source field: "agent 2026-05-30T..." or "user 2026-05-30T..."
+                  // created_at may also be available directly
+                  const raw = entry.created_at || (entry.source?.split(" ").slice(1).join(" ")) || null;
+                  if (!raw) return null;
                   try {
-                    const d = new Date(entry.created_at);
+                    const d = new Date(raw);
                     if (isNaN(d.getTime())) return null;
                     const ct = new Date(d.toLocaleString("en-US",{timeZone:"America/Chicago"}));
                     const runId = `${ct.getFullYear()}${String(ct.getMonth()+1).padStart(2,'0')}${String(ct.getDate()).padStart(2,'0')}-${String(ct.getHours()).padStart(2,'0')}${String(ct.getMinutes()).padStart(2,'0')}${String(ct.getSeconds()).padStart(2,'0')}`;
