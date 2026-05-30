@@ -1,5 +1,5 @@
 // PersonnelScreen.jsx
-// v4.2.4 — Training card face shows time, steps, and web searches used
+// v4.2.14 — Training card face shows time, steps, web searches, run ID and CT timestamp
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PERSONNEL SCREEN v2 — Tabbed workspace with live agent_configs
@@ -764,6 +764,12 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                   )}
                 </div>
                 <div style={{fontFamily:display,fontSize:13.5,fontWeight:600,color:isRetired?T.mutedDeep:T.navy,marginBottom:4,fontStyle:isRetired?"italic":"normal"}}>{entry.title}</div>
+                {entry.created_at&&(()=>{
+                  const d=new Date(entry.created_at);
+                  const runId=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getUTCHours()-5<0?d.getUTCHours()+19:d.getUTCHours()-5).padStart(2,'0')}${String(d.getUTCMinutes()).padStart(2,'0')}${String(d.getUTCSeconds()).padStart(2,'0')}`;
+                  const ctStr=d.toLocaleString("en-US",{timeZone:"America/Chicago",month:"numeric",day:"numeric",year:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true});
+                  return <div style={{fontFamily:mono,fontSize:9,color:T.muted,marginBottom:3}}>Run {runId} · {ctStr} CT</div>;
+                })()}
                 {entry.triggers?.length>0&&(
                   <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:3}}>
                     {(entry.triggers.includes("all")?["All Flags"]:entry.triggers).map(t=><span key={t} style={{fontFamily:mono,fontSize:8.5,padding:"1px 6px",background:`${T.flag}10`,color:T.flag,border:`1px solid ${T.flag}35`,letterSpacing:.3}}>⚑ {t.toUpperCase().replace(/-/g," ")}</span>)}

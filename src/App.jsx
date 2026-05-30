@@ -1,3 +1,6 @@
+// App.jsx
+// v4.2.14 — Event log shows run ID, wall-clock CT timestamp per event
+
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import Papa from "papaparse";
 import {
@@ -283,6 +286,7 @@ export default function NIGPAnalyzer() {
   const [fetchDateTo,setFetchDateTo]=useState("01/30/2025");
   const [fetchEvents,setFetchEvents]=useState([]);
   const [fetchRunning,setFetchRunning]=useState(false);
+  const [fetchRunId,setFetchRunId]=useState(null);
   const [fetchThinking,setFetchThinking]=useState(false);
   const [fetchThinkingText,setFetchThinkingText]=useState("");
   const [fetchComplete,setFetchComplete]=useState(null); // {fileName, filePath, steps}
@@ -347,6 +351,10 @@ export default function NIGPAnalyzer() {
     setFetchThinkingText("Connecting to agent…");
     setFetchTotalTime(null);
     fetchStartTimeRef.current=Date.now();
+    // Generate short run ID: YYYYMMDD-HHMMSS
+    const now=new Date();
+    const runId=`${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+    setFetchRunId(runId);
     setFetchScreen("running");
     const stateConfig=FETCH_STATES.find(s=>s.key===fetchState);
     const usePat=agentId==="pat";
@@ -798,7 +806,9 @@ export default function NIGPAnalyzer() {
           {/* Event pane — own scrollable column, pinned to bottom */}
           <div style={{width:300,flexShrink:0,background:T.card,borderRight:`1px solid ${T.line}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
             <div style={{padding:"9px 12px",borderBottom:`1px solid ${T.line}`,background:T.cardAlt,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-              <span style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:2,color:T.muted,fontWeight:500}}>Event Log</span>
+              <span style={{fontFamily:mono,fontSize:"9px",textTransform:"uppercase",letterSpacing:2,color:T.muted,fontWeight:500}}>
+                Event Log{fetchRunId&&<span style={{color:T.brass,marginLeft:6,letterSpacing:1}}>· {fetchRunId}</span>}
+              </span>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontFamily:mono,fontSize:"9px",color:T.brass,fontWeight:600}}>
                   {fetchActionCount} steps
@@ -814,29 +824,40 @@ export default function NIGPAnalyzer() {
             <div ref={fetchListRef} onScroll={handleFetchScroll} style={{flex:1,overflowY:"auto",padding:0,scrollBehavior:"smooth"}}>
               {fetchEvents.map((ev,idx)=>{
                 const act=ev.action?.toUpperCase()||ev.type?.toUpperCase()||"";
-                const bg=ACTION_COLORS_FETCH[act]||"rgba(120,109,82,0.05)";
-                const tc=ACTION_TEXT_COLORS_FETCH[act]||T.muted;
+                const bg=act==="REFLECT"?"rgba(45,111,181,0.15)":act==="SEARCH"?"rgba(155,110,243,0.12)":ACTION_COLORS_FETCH[act]||"rgba(120,109,82,0.05)";
+                const tc=act==="REFLECT"?"#2d6fb5":act==="SEARCH"?"#9b6ef3":ACTION_TEXT_COLORS_FETCH[act]||T.muted;
                 const isError=ev.type==="error"||ev.type==="stuck"||ev.type==="action_error";
                 const isComplete=ev.type==="downloaded"||ev.type==="complete";
                 const isStopped=ev.type==="stopped";
-                const borderLeft=isError?`2.5px solid ${T.flag}`:isComplete?`2.5px solid ${T.moss}`:`2.5px solid transparent`;
+                const isReflect=ev.action==="REFLECT";
+                const isSearch=ev.action==="SEARCH";
+                const borderLeft=isError?`2.5px solid ${T.flag}`:isComplete?`2.5px solid ${T.moss}`:isReflect?`2.5px solid ${T.blue}`:isSearch?`2.5px solid rgba(155,110,243,0.8)`:`2.5px solid transparent`;
                 return(
                   <div key={idx} onClick={()=>setFetchSelectedEvent(idx)}
                     style={{padding:"9px 12px",borderBottom:`1px solid ${T.lineSoft}`,cursor:"pointer",
                       borderLeft:fetchSelectedEvent===idx?`2.5px solid #2d6fb5`:borderLeft,
                       paddingLeft:"9.5px",
-                      background:fetchSelectedEvent===idx?"rgba(45,111,181,0.08)":isError?`rgba(168,51,25,0.04)`:isComplete?`rgba(0,135,90,0.04)`:isStopped?`rgba(120,109,82,0.04)`:"transparent",
+                      background:fetchSelectedEvent===idx?"rgba(45,111,181,0.08)":isReflect?"rgba(45,111,181,0.05)":isSearch?"rgba(155,110,243,0.05)":isError?`rgba(168,51,25,0.04)`:isComplete?`rgba(0,135,90,0.04)`:isStopped?`rgba(120,109,82,0.04)`:"transparent",
                       transition:"background 0.1s"}}>
                     <div style={{fontFamily:mono,fontSize:"8px",color:T.muted,marginBottom:4}}>
                       #{String(idx+1).padStart(2,"0")} · {act}
                       {ev.timestamp&&fetchEvents[0]?.timestamp&&(()=>{
                         const elapsed=(new Date(ev.timestamp)-new Date(fetchEvents[0].timestamp))/1000;
-                        return <span style={{color:T.brass,marginLeft:4}}>+{elapsed<60?elapsed.toFixed(1)+"s":Math.floor(elapsed/60)+"m"+Math.round(elapsed%60)+"s"}</span>;
+                        const wallClock=new Date(ev.timestamp).toLocaleTimeString("en-US",{timeZone:"America/Chicago",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true});
+                        return <>
+                          <span style={{color:T.brass,marginLeft:4}}>+{elapsed<60?elapsed.toFixed(1)+"s":Math.floor(elapsed/60)+"m"+Math.round(elapsed%60)+"s"}</span>
+                          <span style={{color:T.muted,marginLeft:6}}>{wallClock} CT</span>
+                        </>;
                       })()}
                     </div>
                     {act&&<span style={{display:"inline-block",fontFamily:mono,fontSize:"8px",textTransform:"uppercase",letterSpacing:1,padding:"1px 5px",fontWeight:600,background:bg,color:tc,marginBottom:5}}>{act}</span>}
                     <div style={{fontSize:"11.5px",color:T.mutedDeep,lineHeight:1.45}}>{ev.narration}</div>
-                    {ev.reasoning&&<div style={{marginTop:5,fontSize:"10.5px",color:T.muted,lineHeight:1.5,fontStyle:"italic",borderLeft:`2px solid ${T.lineSoft}`,paddingLeft:6}}>{ev.reasoning}</div>}
+                    {ev.reasoning&&(
+                      <div style={{marginTop:5,fontSize:"10.5px",color:isReflect?T.mutedDeep:T.muted,lineHeight:1.5,fontStyle:isReflect?"normal":"italic",borderLeft:`2px solid ${isReflect?"#2d6fb5":T.lineSoft}`,paddingLeft:6,whiteSpace:"pre-wrap"}}>
+                        {isReflect&&<div style={{fontFamily:mono,fontSize:8,color:"#2d6fb5",marginBottom:4,letterSpacing:1}}>EXECUTION PLAN</div>}
+                        {ev.reasoning}
+                      </div>
+                    )}
                     {ev.target&&<div style={{marginTop:4,fontFamily:mono,fontSize:"8.5px",color:"rgba(45,111,181,0.7)"}}>target: {String(ev.target).slice(0,80)}</div>}
                     {ev.value&&<div style={{fontFamily:mono,fontSize:"8.5px",color:`rgba(0,135,90,0.8)`}}>value: "{String(ev.value).slice(0,60)}"</div>}
                   </div>
