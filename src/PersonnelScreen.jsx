@@ -765,10 +765,13 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                 </div>
                 <div style={{fontFamily:display,fontSize:13.5,fontWeight:600,color:isRetired?T.mutedDeep:T.navy,marginBottom:4,fontStyle:isRetired?"italic":"normal"}}>{entry.title}</div>
                 {entry.created_at&&(()=>{
-                  const d=new Date(entry.created_at);
-                  const runId=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getUTCHours()-5<0?d.getUTCHours()+19:d.getUTCHours()-5).padStart(2,'0')}${String(d.getUTCMinutes()).padStart(2,'0')}${String(d.getUTCSeconds()).padStart(2,'0')}`;
-                  const ctStr=d.toLocaleString("en-US",{timeZone:"America/Chicago",month:"numeric",day:"numeric",year:"2-digit",hour:"2-digit",minute:"2-digit",hour12:true});
-                  return <div style={{fontFamily:mono,fontSize:9,color:T.muted,marginBottom:3}}>Run {runId} · {ctStr} CT</div>;
+                  try {
+                    const d = new Date(entry.created_at);
+                    if (isNaN(d.getTime())) return null;
+                    const ct = new Date(d.toLocaleString("en-US",{timeZone:"America/Chicago"}));
+                    const runId = `${ct.getFullYear()}${String(ct.getMonth()+1).padStart(2,'0')}${String(ct.getDate()).padStart(2,'0')}-${String(ct.getHours()).padStart(2,'0')}${String(ct.getMinutes()).padStart(2,'0')}${String(ct.getSeconds()).padStart(2,'0')}`;
+                    return <div style={{fontFamily:mono,fontSize:9,color:T.brass,marginBottom:3,letterSpacing:.5}}>Run {runId}</div>;
+                  } catch { return null; }
                 })()}
                 {entry.triggers?.length>0&&(
                   <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:3}}>
