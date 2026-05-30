@@ -1,3 +1,6 @@
+// api/load-entries.js
+// v4.2.19 — pass created_at as raw field for Run ID in training card
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -53,6 +56,7 @@ export default async function handler(req, res) {
       teaching_note: e.teaching_note || "",
       source_type:   e.source || "user",
       steps_taken:   e.steps_taken || null,
+      created_at:    e.created_at || null,
       content:       e.content || "",
       isDemo:        false,
       source:        e.created_at
