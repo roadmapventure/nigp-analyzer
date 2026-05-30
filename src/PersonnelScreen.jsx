@@ -1,3 +1,6 @@
+// PersonnelScreen.jsx
+// v4.2.4 — Training card face shows time, steps, and web searches used
+
 // ══════════════════════════════════════════════════════════════════════════════
 // PERSONNEL SCREEN v2 — Tabbed workspace with live agent_configs
 // Drop this file into src/ and import into TeamBuilder.jsx replacing
@@ -743,6 +746,14 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                     </>);
                   })()}
                   {entry.steps_taken&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.brass}40`,color:T.brass,background:`${T.brass}10`,fontWeight:600,letterSpacing:.5}}>{entry.steps_taken} STEPS</span>}
+                  {entry.source_type==="agent"&&entry.content&&(()=>{
+                    const tMatch=entry.content.match(/Time:\s*([\d.]+[ms]+(?:\s*\d+s)?)/);
+                    const sMatch=entry.content.match(/Web searches used:\s*(\d+)/);
+                    return(<>
+                      {tMatch&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.brass}40`,color:T.brass,background:`${T.brass}10`,fontWeight:600,letterSpacing:.5}}>⏱ {tMatch[1]}</span>}
+                      {sMatch&&parseInt(sMatch[1])>0&&<span style={{fontFamily:mono,fontSize:9,padding:"1px 5px",border:`1px solid ${T.navy}40`,color:T.navy,background:`${T.navy}10`,fontWeight:600,letterSpacing:.5}}>🔍 {sMatch[1]} SEARCH{parseInt(sMatch[1])>1?"ES":""}</span>}
+                    </>);
+                  })()}
                   <span style={{fontFamily:mono,fontSize:9,color:T.muted}}>▸ {entry.jurisdiction||"All"}</span>
                   <span style={{fontFamily:mono,fontSize:9,color:isRetired?T.muted:T.moss,marginLeft:"auto",fontWeight:700}}>{isRetired?"○ Disabled":"● Active"}</span>
                   {agent.trainable&&!isRetired&&(
@@ -760,10 +771,7 @@ function TrainingTab({ agent, entries, entriesLoading, onEditEntry, onDeleteEntr
                 )}
                 {entry.priority!=null&&<div style={{fontFamily:mono,fontSize:9,color:T.muted}}>Priority {entry.priority}/100</div>}
                 {/* Time display — visible on card for agent field notes */}
-                {entry.source_type==="agent"&&entry.content&&(()=>{
-                  const timeMatch=entry.content.match(/Time:\s*([\d.]+[ms]+(?:\s*\d+s)?)/);
-                  return timeMatch?<div style={{fontFamily:mono,fontSize:9,color:T.brass,marginTop:3}}>⏱ {timeMatch[1]}</div>:null;
-                })()}
+
                 {/* Expandable learned content — shown for all entries, especially agent field notes */}
                 {entry.content&&(
                   <div style={{marginTop:6}}>
